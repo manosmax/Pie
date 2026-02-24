@@ -174,4 +174,5 @@ Because each event is stored as a separate JSON object on its own line. This mak
 They are two different types of information. Seq allows us to enumerate the deposits while timestamps inform us of when the deposits happen. 
 
 ---
-**
+**RQ39: Why should deposit_total be monotonically increasing within a run?**
+deposit_total should be monotonically increased to preserve the order of the deposit events.
