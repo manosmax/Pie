@@ -11,7 +11,7 @@
 
 # Device Event Generator
 
-A CLI tool for generating simulated IoT device events (deposits and heartbeats) for a sensor as JSON output files. Useful for testing data pipelines, stream processors, or any system that consumes device event logs.
+A CLI tool for generating simulated IoT device events (deposits and heartbeats) for a sensor as JSON output files.
 
 ---
 
@@ -148,14 +148,11 @@ Events are written as newline-delimited JSON (NDJSON), one record per line.
 
 ---
 
-## License
-
-MIT
 
 
 # Section B 
 **RQ0: What is the commit hash of your final “end-of-lab” commit for Lab 01?**
-> ..
+The final commit hash, before this update is the following : 05e15202680a32edbde8939962c854a6412d6f5d
 
 ---
 
