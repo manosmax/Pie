@@ -168,33 +168,26 @@ Each line is an independent object. This allows for easy appending of logs keepi
 `seq` provides a strict numerical order of deposits, while `timestamps` provide the real-world time of the event.
 
 **RQ39: Why should deposit_total be monotonically increasing within a run?**
-
 It preserves the logical order of events and ensures that no data has been lost or calculated incorrectly during the process.
 
 
 **RQ40: Which of the above correctness rules would be hardest to verify manually, and why?**
-
 The hardest rule to verify manualy is the monotonical character of the seq. An error would be difficult to spot across thousands of records by hand.
 
 **RQ41: What problems arise if operational messages are mixed into event logs?**
-
 Operational messages are of a different format from event logs. Mixing the streams would possibly break the json file which even though not hard to spot manually, would create problems for programms that automatically access it, possibly breaking them. 
 
 **RQ42: Why might operational logs still be essential during debugging?**
-
 The heartbeat records can identify when the controller for some reason fails. However we don't get any information about the reason of the crash. For debugging purposes, it is usefull to log operational logs so that we know where the problem occured and what to try to fix. 
 
 **RQ43: Why is it important to distinguish usage errors from runtime errors?**
-
 Usage errros do not indicate a problem with the program but are examples of of human error. The user just needs to re-examine his commands. Distinguishing them from runtime errors, enables the microcontroller to inform the developers about the issue or not. 
 
 
 **RQ44: How could consistent exit codes be useful in automated systems?**
-
 Replacing print statements with error codes gives a more compatible output with automated systems. Those codes tell the automated program exactly how to respond to each kind of crash. 
 
 **RQ45: What could go wrong if a program is terminated without handling interrupts properly?**
-
 A sudden program termination could break files and logs. The proccess could be stopped in the middle of writting a line. This breaks the json format and currupts the logs.
 
 
@@ -227,20 +220,41 @@ A sudden program termination could break files and logs. The proccess could be s
 }
 ```
 
-From the records above we can see that the seq and the total increasing by one with each event reached 10. The delta is 1 as every event increases the deposit_total by 1. 
+From the records above we can see that the `seq` and the total increasing by one with each event reached 10. The delta is 1 as every event increases the `deposit_total` by 1. 
 
 **RQ47: How can a consumer distinguish heartbeat records from deposit records in the log?**
-
-A user can easily distinguish the two types of records with the record at the event_type key 
+A user can easily distinguish the two types of records with the record at the `event_type` key. 
 
 
 **RQ48: For each invalid command, show the error message and exit code.**
->....
+```
+>python lab1_advanced.py --device-id "DEV_001" --event-type "deposit" --interval 0.5 --out "events.log" --verbose  
+Error: Missing option '--count'.
+>python lab1_advanced.py --device-id "DEV_001" --count 10 --interval 0.5 --out "events.log" --verbose
+Error: Missing option '--event-type'. Choose from:
+        deposit,
+        heartbeat
+```
+```
+>python lab1_advanced.py --device-id "DEV_001" --event-type "deposit" --count 10 --interval 0.5 --verbose 
+Error: Missing option '--out'.
+```
+
 
 **RQ49: Which invalid input do you think is most likely in real usage, and why?**
-
-The most likely are are either gramatical in nature or forgetting set some of them. 
+The most likely are either grammatical in nature or forgetting to set some of them resulting in unset parameters. 
 
 **RQ50: How many records were written before interruption?**
+Before interrupting the program, with one record per second, 10 records were written on the log file.
 
-Before interrupting the program, wtih one record per second, there we written 10 records on the log file.
+**RQ51: List at least five concrete problems in the bad README that would block or confuse a new team. Be specific (quote or reference the problematic line/section).**
+*Dependencies not Listed.
+*Assuming Expert Knowledge. 
+*Incomplete Installation Instructions.
+*Lack of Troubleshooting or Support Info.
+*Missing Configuration Details.
+
+**RQ52: List improvements (if any) you made to your own labs/lab01/README.md as a result of this exercise, and explain why each improvement matters for reproducibility.**
+We added the prerequisites that are needed to run the program (click, requirements.txt) as well as used a virtual environment to assert repeatability. Also we analytically described the process of running our program and created a correct gitignore file. 
+
+
