@@ -114,33 +114,43 @@ We chose to clone the repository into a new file named `~\programs` at the home 
 ## 🐍 Part C: Reproducible Python environment on the Pi
 
 **RQ26: What did sys.executable show, and how does that prove you are using the venv?**
-It showed: `/home/iotlab_upat_8/programs/Pie/labs/lab01/venv/bin/python`.
-The explicit path pointing to the `venv` folder confirms the interpreter is isolated within the project environment.
+Running the following code : 
+```(venv) iotlab_upat_8@iotlab-Upat-8:~/programs/Pie/labs/lab01 $ python -c "import sys; print(sys.executable)"```
+
+
+We get the next: 
+```/home/iotlab_upat_8/programs/Pie/labs/lab01/venv/bin/python```
+
+
+We can confirm that we are using the virtual environment by either
+*the starting (venv) on the terminal 
+*the python binary is not global but as seen by the sys.executable output, inside the venv binary folder 
+
 
 **RQ27: In one paragraph: what problem does a venv solve?**
-A virtual environment solves the problem of dependency conflicts by isolating each project’s packages from the system installation. It creates a self-contained space where dependencies can be managed independently, ensuring consistent behavior across development environments and preventing "it works on my machine" issues.
+A virtual environment solves the problem of dependency conflicts between projects by isolating each project’s packages and versions from the system packages. A virtual environment creates a self-contained space where dependencies can be installed, managed, and reproduced independently, ensuring consistent behavior across development environments and preventing “it works on my machine” issues.
 
 **RQ28: What dependencies did you include and why? If you use argparse do you need to include the requirements.txt?**
-We used `click` as it is a modern, recommended way to create structured CLI libraries. If using `argparse`, you don't strictly *need* it in `requirements.txt` because it is a standard library, but it's often included for clarity.
+We used `click` as it is recommended and seems to offer a more modern way to create a structured CLI library.If using `argparse`, you don't strictly need it in `requirements.txt` because it is a standard library. 
 
 **RQ29: What would happen if different teams used different dependency versions?**
 Due to differences in library functions, the code might not work properly on all computers, leading to a lack of reproducibility.
 
 **RQ30: How can you verify you installed packages into the venv?**
-Run `pip list` within the activated environment. It will display only the packages installed specifically for that project.
+We can use `pip list` to see all the available packages when we are at the venv terminal. There we will see a list, of all the available, already downloaded packages that we can use for our project.
 
 ---
 
 ## 📈 Part F: Logic & Data Logging
 
 **RQ31: Why might it be useful to start with a mock event generator instead of real hardware?**
-It allows for testing software stability in a controlled environment before introducing the "noise" and unpredictable variables of real-world hardware.
+We need to use a controlled environment at first to check for stability issues and the correct function of the program before using real hardware in a real world scenario, which introduces noise and unforeseen circumstances which can affect our measurements.
 
 **RQ32: What aspects of the system can you test with this mock that are independent of sensors?**
-We can verify that data is logged successfully, that the network access works, and that the data is structured correctly for statistical analysis.
+We can confirm that we can successfully log our data and access them remotely through the network. We can also simulate data for statistical analysis.
 
 **RQ33: Why is it useful to distinguish between “activity” (deposit) and “liveness” (heartbeat) events?**
-Activity events are sporadic (only when an action occurs), whereas heartbeats are regular and indicate the device is still online and communicating properly even during idle periods.
+Activity events don't happen on a regular basis but only when an action is performed. While heartbeat events happen regularly to indicate the device’s online status and proper function and communication with our systems.
 
 **RQ34: Give one example of how a system might misbehave if heartbeats were missing.**
 If the system goes offline, we would not detect the failure until a "deposit" was expected, potentially leading to significant data loss during the undetected downtime.
@@ -152,7 +162,7 @@ We added `--verbose` (to see real-time updates in the terminal) and `--starting-
 It ensures the user immediately knows they have executed the program with incorrect parameters, preventing errors further down the line.
 
 **RQ37: Why is JSON Lines a good fit for append-only event logs?**
-Each line is an independent object. This allows for easy appending, incremental processing (reading line-by-line), and keeps the log readable and easy to debug.
+Each line is an independent object. This allows for easy appending of logs keeping the database readable and easy to debug.
 
 **RQ38: Why is it useful to include both seq and timestamps in each record?**
 `seq` provides a strict numerical order of deposits, while `timestamps` provide the real-world time of the event.
@@ -168,7 +178,7 @@ The hardest rule to verify manualy is the monotonical character of the seq. An e
 
 **RQ41: What problems arise if operational messages are mixed into event logs?**
 
-Operational messages are of different format from event logs. Mixing the streams would possibly break the json file which even though not hard to spot manually, would create problems for programms that automatically access it, possibly breaking them. 
+Operational messages are of a different format from event logs. Mixing the streams would possibly break the json file which even though not hard to spot manually, would create problems for programms that automatically access it, possibly breaking them. 
 
 **RQ42: Why might operational logs still be essential during debugging?**
 
