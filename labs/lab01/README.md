@@ -19,7 +19,7 @@
 We used hostname: `iotlab-Ulab8` and the IP address `10.184.45.237`.
 
 **RQ2: Did DNS resolution work (ping google.com)? If it failed, what does that imply?**
-After successfully connecting to the internet we were able to normally browse and ping any website that we needed.
+After successfully connecting to the internet we were able to normally browse and ping any website that we needed.If it failed it would mean that we have not connected successfully on the internet. 
 
 **RQ3: Was the connection wired or wireless?**
 We used a wireless connection. Using our laptop as a portable Wi-Fi hotspot, we were able to connect our Pi to the laptop which was connected to the eduroam network.
@@ -42,92 +42,91 @@ Edge devices are often inaccessible after deployment (e.g., mounted high up or i
 ## Part B — Remote-first workflow (SSH from laptop)
 
 
-**RQ6(2): What SSH command did you use, and which username?**
+**RQ7: What SSH command did you use, and which username?**
 We used the command `ssh iotlab_upat_8@10.184.45.237` using the username `iotlab_upat_8`.
 
-**RQ7: Did you see a host key prompt the first time? What is that prompt for (in your own words)?**
+**RQ8: Did you see a host key prompt the first time? What is that prompt for (in your own words)?**
 Yes, we saw a host key prompt. This is a security feature that allows the client to verify the identity of the remote server. By accepting the key, we ensure that we are connecting to the intended device and not an unauthorized one (protecting against Man-in-the-Middle attacks).
 
-**RQ8: What does uptime tell you that is relevant for edge systems?**
-Uptime is a key diagnostic tool. It helps identify software crashes, hardware instability, or power interruptions. Since edge systems handle critical data, monitoring uptime helps us correlate potential data loss with system restarts or outages.
+**RQ9: What does uptime tell you that is relevant for edge systems?**
+Uptime is extremely important for edge systems as it can provide critical information about any software and hardware crashes as well as any power interrupts. As edge systems often handle data, by examining uptime we can look out for any data loss that might have occurred during a crash or power outage. To conclude, uptime is a key diagnostic tool for any factors that can affect the stability of our edge device.
 
-**RQ9: Did you enable SSH keys? Describe the steps briefly.**
-We did not enable SSH keys as our current login process is straightforward for this lab environment.
+**RQ10: Did you enable SSH keys? Describe the steps briefly.**
+We did not enable SSH keys as our login process is already very straight forward.
 
-**RQ10: Why are SSH keys generally preferred over passwords for remote access?**
-Passwords can be brute-forced or leaked. SSH keys are cryptographically strong and nearly impossible to guess. They also facilitate secure, non-interactive (automated) logins for scripts and background processes.
+
+**RQ11: Why are SSH keys generally preferred over passwords for remote access?**
+While passwords can easily be guessed, brute-forced, forgotten or leaked SSH keys are extremely long and practically impossible to brute-force. Also SSH keys can provide an easier and more secure way for automated authentication for anything in our edge environment that needs non-interactive login.
 
 ---
 
 ## Part C — Baseline smoke test
 
-**RQ11: Is system time correct? If not, what could break downstream?**
-The system time was correct after setting up the machine and connecting it to the internet. If the time were to malfunction:
-* **Example 1:** Scheduled tasks might trigger at the wrong time.
-* **Example 2:** Log timestamps would be incorrect, making it impossible to correlate events across different devices.
+**RQ12: Is system time correct? If not, what could break downstream?**
+The system time was correct after setting up the machine and connecting it to the internet. If the time were to malfunction it would present problems if we needed our edge system to activate at a specific time. Alternatively, if we were to receive logs from our device to diagnose an issue the timestamp would be off. 
 
-**RQ12: How much free disk space is available? Why does disk usage matter for logging systems?**
+**RQ13: How much free disk space is available? Why does disk usage matter for logging systems?**
 * **Total:** 29 GB | **Free:** 21 GB
-* *(Please add why disk usage matters for logging systems here)*
+* In case of storing logs or other critical data,we need to monitor if we run out of space.
 
-**RQ13: What Python version is installed? Why might the Python version affect reproducibility?**
+**RQ14: What Python version is installed? Why might the Python version affect reproducibility?**
 Our Pi has Python `3.13.5` installed. Python version can affect reproducibility as changes in language features, standard libraries, or dependency compatibility may cause code to behave differently or fail across environments.
 
-**RQ14: Who created the repository and how did you grant access to teammates?**
+**RQ15: Who created the repository and how did you grant access to teammates?**
 Manolis Pasamichalis created the repository. Teammates were invited as GitHub collaborators and accepted the invitation to gain commit access.
 
 ---
 ## Part D — Git and GitHub basics 
 
-**RQ15: What would likely go wrong if each team member kept their own local version of the lab/project work?**
-We would lose a "single source of truth." Merging work would have to be done manually, increasing the risk of bugs. We would lose the version history, and dependencies might diverge between members.
+**RQ16: What would likely go wrong if each team member kept their own local version of the lab/project work?**
+If each team member kept their own local version of the project, each one of us would be working on a separate version. That would mean that we would not know which file was truly the latest and that we would need to manually merge the files together. Also, we would not have a history of the changes each one of us has contributed, so debugging would be harder. Dependencies can break as there could be wrong code integration.
 
-**RQ16: What is the difference between git add and git commit?**
-* `git add`: Selects which changes should be added to the next update (Staging).
-* `git commit`: Finalizes those changes and saves them as a snapshot in the local repository.
+**RQ17: What is the difference between git add and git commit?**
+* `git add`: Selects which changes should be added to the next update .
+* `git commit`: Finalizes those changes and saves them in the local repository.
 
-**RQ17: What does git push do, and why is it important in a team setting?**
-`git push` uploads local commits to the remote repository (GitHub). It is important in a team setting because it allows others to pull your changes and integrate them into their local environments.
+**RQ18: What does git push do, and why is it important in a team setting?**
+Finally git push adds the changes that were saved by git commit to the online repository where everyone in the team can view the commits. It is important in a team setting because the team can pull your changes and integrate them to their local repository where they can continue working on the latest version of the file.
 
-**RQ18: What problem can happen if two teammates edit the same file without pulling first?**
-They would not be editing the latest version. This leads to merge conflicts or bugs when they eventually try to integrate their code because they didn't account for each other's changes.
+**RQ19: What problem can happen if two teammates edit the same file without pulling first?**
+If two teammates edit the same file without pulling first they would not be editing the latest version of the project. That would mean that there could be crashes or bugs when they integrate their code in the project down the line because they would not take into account each other's contribution.
 
-**RQ19: Did your team use branches? If yes, describe your workflow briefly. If no, explain why.**
-No. The process was simple enough that we updated the main repository every time a change was made so everyone stayed on the latest version.
+**RQ20: Did your team use branches? If yes, describe your workflow briefly. If no, explain why.**
+Our team did not use branches in the first lab as the process work too simple. We just updated the online repository every time each one of us made a change so everyone would be in the latest version.
 
-**RQ20: What is a merge conflict, and when does it happen?**
-A merge conflict occurs when Git cannot automatically reconcile differences between two branches—usually when two people modify the same lines in a file or one person deletes a file that another modified.
+**RQ21: What is a merge conflict, and when does it happen?**
+A merge conflict occurs when Git can not automatically merge changes from two branches because the changes overlap or contradict each other.It typically happens when two people modify the same lines in the same file,one branch deletes a file while another branch modifies it,the same section of code is edited differently in separate branches.
 
-**RQ21: Which authentication method did you use to push to GitHub?**
-We used **HTTPS + Personal Access Tokens (PAT)** based on our previous experience with GitHub in other courses.
+**RQ22: Which authentication method did you use to push to GitHub?**
+Because of our previous experience with git hub, for personal use and other courses such as “Βάσεις Δεδομένων”, we each had a GitHub Personal Access Token that we used for authentication.
 
-**RQ22: Why should virtual environments not be committed to git?**
-They contain environment-specific packages already listed in `requirements.txt`. Committing them bloats the repository; instead, each developer should recreate the venv locally.
+**RQ23: Why should virtual environments not be committed to git?**
+Virtual environments should not be committed to git as they contain packages that are already committed in requirements.txt so committing them again would bloat the repository. The correct approach is for each developer to create their own virtual environments based on the committed requirements.txt file.
 
-**RQ23: Why is it usually not acceptable to commit logs?**
-Logs are often very large, temporary, and environment-specific. They can also contain sensitive information like system paths or API keys. They should be excluded via `.gitignore`.
+**RQ24: Why is it usually not acceptable to commit logs?**
+It is usually not acceptable to commit logs as they are usually very large files that can contain sensitive information such as system paths and API keys. Logs are temporary and environment-specific so they should be excluded via `.gitignore`.
 
-**RQ24: Where on the Pi did you clone the repo (path)? Why?**
-We cloned it to `~/programs/` for easy access. Since the device is dedicated to these labs, keeping the repo in the home path is the most efficient choice for frequent use.
+**RQ25: Where on the Pi did you clone the repo (path)? Why?**
+We chose to clone the repository into a new file named `~\programs` at the home path for easy and quick access. As our device is used only for the labs and the final project, keeping the cloned repository on the home path is the best choice for frequent access.
 
 ---
 
 ## 🐍 Part C: Reproducible Python environment on the Pi
 
-**RQ25: What did sys.executable show, and how does that prove you are using the venv?**
+**RQ26: What did sys.executable show, and how does that prove you are using the venv?**
 It showed: `/home/iotlab_upat_8/programs/Pie/labs/lab01/venv/bin/python`.
 The explicit path pointing to the `venv` folder confirms the interpreter is isolated within the project environment.
 
-**RQ26: In one paragraph: what problem does a venv solve?**
+**RQ27: In one paragraph: what problem does a venv solve?**
 A virtual environment solves the problem of dependency conflicts by isolating each project’s packages from the system installation. It creates a self-contained space where dependencies can be managed independently, ensuring consistent behavior across development environments and preventing "it works on my machine" issues.
 
-**RQ27: What dependencies did you include and why? If you use argparse do you need to include the requirements.txt?**
+**RQ28: What dependencies did you include and why? If you use argparse do you need to include the requirements.txt?**
 We used `click` as it is a modern, recommended way to create structured CLI libraries. If using `argparse`, you don't strictly *need* it in `requirements.txt` because it is a standard library, but it's often included for clarity.
 
-**RQ28: What would happen if different teams used different dependency versions?**
+**RQ29: What would happen if different teams used different dependency versions?**
 Due to differences in library functions, the code might not work properly on all computers, leading to a lack of reproducibility.
 
-**RQ29: How can you verify you installed packages into the venv?**
+**RQ30: How can you verify you installed packages into the venv?**
 Run `pip list` within the activated environment. It will display only the packages installed specifically for that project.
 
 ---
