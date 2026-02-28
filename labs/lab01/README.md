@@ -7,7 +7,153 @@
 
 ---
 
+# Section A 
 
+# Device Event Generator
+
+A CLI tool for generating simulated IoT device events (deposits and heartbeats) for a sensor as JSON output files. Useful for testing data pipelines, stream processors, or any system that consumes device event logs.
+
+---
+
+## Requirements
+
+- Python 3.7+
+
+### 1. Create a virtual environment
+
+```bash
+python -m venv venv
+```
+
+### 2. Activate the virtual environment
+
+**macOS / Linux:**
+```bash
+source venv/bin/activate
+```
+
+**Windows:**
+```bash
+venv\Scripts\activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+> `requirements.txt` pins `click==8.1.7`.
+
+---
+
+## Usage
+
+```bash
+python generate_events.py [OPTIONS]
+```
+
+### Options
+
+| Flag | Required | Type | Description |
+|------|----------|------|-------------|
+| `--device-id` | ✅ | `string` | Unique identifier for the device |
+| `--event-type` | ✅ | `deposit` \| `heartbeat` | Type of event to generate |
+| `--count` | ✅ | `int` | Number of events to generate (must be > 0) |
+| `--interval` | ✅ | `float` | Seconds to wait between events (>= 0) |
+| `--out` | ✅ | `path` | Output file path (appends if file exists) |
+| `--starting-total` | ❌ | `int` | Starting deposit total (default: `0`) |
+| `--verbose` | ❌ | flag | Print progress every 5 events |
+
+---
+
+## Examples
+
+**Generate 10 deposit events with a 0.5s interval:**
+```bash
+python generate_events.py \
+  --device-id device-42 \
+  --event-type deposit \
+  --count 10 \
+  --interval 0.5 \
+  --out events.ndjson
+```
+
+**Generate 5 heartbeat events instantly with verbose logging:**
+```bash
+python generate_events.py \
+  --device-id device-42 \
+  --event-type heartbeat \
+  --count 5 \
+  --interval 0 \
+  --out events.ndjson \
+  --verbose
+```
+
+**Continue a deposit run from a prior total:**
+```bash
+python generate_events.py \
+  --device-id device-42 \
+  --event-type deposit \
+  --count 20 \
+  --interval 1 \
+  --out events.ndjson \
+  --starting-total 50
+```
+
+---
+
+## Output Format
+
+Events are written as newline-delimited JSON (NDJSON), one record per line.
+
+**Deposit event:**
+```json
+{
+  "event_time": "2024-01-15T10:30:00.123Z",
+  "ingest_time": "2024-01-15T10:30:00.123Z",
+  "device_id": "device-42",
+  "event_type": "deposit",
+  "seq": 1,
+  "run_id": "a1b2c3d4-...",
+  "deposit_delta": 1,
+  "deposit_total": 51
+}
+```
+
+**Heartbeat event:**
+```json
+{
+  "event_time": "2024-01-15T10:30:00.123Z",
+  "ingest_time": "2024-01-15T10:30:00.123Z",
+  "device_id": "device-42",
+  "event_type": "heartbeat",
+  "seq": 1,
+  "run_id": "a1b2c3d4-...",
+  "status": "online"
+}
+```
+
+> Each run gets a unique `run_id` (UUID v4). The output file is opened in **append mode**, so multiple runs can write to the same file safely.
+
+---
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success (or clean `Ctrl+C` interrupt) |
+| `1` | Runtime error |
+| `2` | Invalid arguments |
+
+---
+
+## License
+
+MIT
+
+
+# Section B 
 **RQ0: What is the commit hash of your final “end-of-lab” commit for Lab 01?**
 > ..
 
