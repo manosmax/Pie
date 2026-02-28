@@ -16,7 +16,7 @@
 ##  Part A — One-time Raspberry Pi bootstrap
 
 **RQ1: What hostname and IP address did you use?**
-We used hostname: `iotlab-Ulab8` and the IP address `10.184.45.237` visible in the following screenshot to connect to our Pi using SSH.
+We used hostname: `iotlab-Ulab8` and the IP address `10.184.45.237`.
 
 **RQ2: Did DNS resolution work (ping google.com)? If it failed, what does that imply?**
 After successfully connecting to the internet we were able to normally browse and ping any website that we needed.
