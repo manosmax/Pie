@@ -77,6 +77,15 @@ At the start of the command we see `(venv)` and also the path has `/venv` in the
 
 ## Part E — From “signal” to “event” (core programming)
 
+---
 
+## Part F — GitHub Projects Kanban Board (in your repo): what it is, why we use it, and exactly how to do it
+
+
+**RQ21: Provide a screenshot of your board .**
+
+**RQ22: Give one concrete example of how the board can prevent a coordination bug (e.g., wrong pin, duplicated work, missed experiment).**
+
+**RQ23: Which card can be a “critical path” blocker for your team, and why?**
 
 
