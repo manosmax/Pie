@@ -77,6 +77,20 @@ At the start of the command we see `(venv)` and also the path has `/venv` in the
 
 ## Part E — From “signal” to “event” (core programming)
 
+**RQ14: What sample interval did you choose and why? (Use your knob experiments to justify it.)**
+
+**RQ15: What cooldown did you choose and why?**
+
+**RQ16: Did you observe brief spikes? What min_high did you choose (or why did you keep it 0)?**
+
+**RQ17: Compute and report latency for 3 records.**
+
+**RQ18: In your own words, explain how your interpreter prevents “motion detected” spam.**
+
+**RQ19: Show a short output snippet of pir_print.py**
+
+**RQ20: Show a short output snippet of pir_event_logger.py**
+
 ---
 
 ## Part F — GitHub Projects Kanban Board (in your repo): what it is, why we use it, and exactly how to do it
