@@ -83,6 +83,8 @@ At the start of the command we see `(venv)` and also the path has `/venv` in the
 
 
 **RQ21: Provide a screenshot of your board .**
+<img width="1779" height="1079" alt="image" src="https://github.com/user-attachments/assets/11ffc301-00d8-41cb-bce8-115b419c8fb2" />
+
 
 **RQ22: Give one concrete example of how the board can prevent a coordination bug (e.g., wrong pin, duplicated work, missed experiment).**
 
