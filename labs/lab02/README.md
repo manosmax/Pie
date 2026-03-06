@@ -87,7 +87,9 @@ At the start of the command we see `(venv)` and also the path has `/venv` in the
 
 
 **RQ22: Give one concrete example of how the board can prevent a coordination bug (e.g., wrong pin, duplicated work, missed experiment).**
+After having the "Smoke Test Works" issue on our board, each member of the team knows that the functionality of the wiring and the motion detector is in order and working as intended, so there is no need for repeating the test again (duplicated work).
 
 **RQ23: Which card can be a “critical path” blocker for your team, and why?**
+A critical path blocker is a task that must be completed before other tasks can proceed. If it is delayed, then our team can not continue with the rest of the project. We believe that the "Smoke Test Works" is a critical path blocker as we can not continue with out project if we do not verify first that the wiring and the motion detection is working.
 
 
