@@ -37,8 +37,7 @@ the sampler automatically falls back to a built-in simulator.
 
 ```bash
 # create
-python3 -m venv .venv
-
+python3 -m venv .venv --system-site-packages
 # activate — Linux / macOS
 source .venv/bin/activate
 
@@ -360,18 +359,43 @@ At the start of the command we see `(venv)` and also the path has `/venv` in the
 ## Part E — From “signal” to “event” (core programming)
 
 **RQ14: What sample interval did you choose and why? (Use your knob experiments to justify it.)**
+We used 0.1s which is an ideal middle point between too much data and possible fast events going undetected. 
 
 **RQ15: What cooldown did you choose and why?**
+We used a cooldown of 2s which is enough time for someone to pass away from the reach of the sensor 
 
 **RQ16: Did you observe brief spikes? What min_high did you choose (or why did you keep it 0)?**
+Min_high is the minimum duration of a high state that is required in order to register as an object. Using 0.2 we observed a lot of noise which was fixed by increasing it to 0.5. 
 
 **RQ17: Compute and report latency for 3 records.**
+The latency for the 3 records is the following : 0.021, 0.039, 0.019. The average is about 25ms 
 
-**RQ18: In your own words, explain how your interpreter prevents “motion detected” spam.**
+**RQ18: In your own words, explain how your interpreter prevents “motion detected” spam.** (FIX)
+The interpreter uses a flag that locks after the first event is emitted on a rising edge, preventing any further events from being written no matter how long the signal stays `HIGH`.It only resets when the signal falls `LOW` and rises again. Before any event is even considered, it is ensured the signal has been continuously `HIGH` long enough to rule out glitches and warm-up spikes. Finally, a cooldown timer records the last emission time and suppresses any new event that arrives before the minimum gap has elapsed, mirroring the PIR's own hardware reset behaviour.
+
+
 
 **RQ19: Show a short output snippet of pir_print.py**
+[print] pin=17 interval=0.1s cooldown=5.0s min_high=0.2s
+t=   0.20s motion_detected
+t=  14.31s motion_detected
+t=  44.63s motion_detected
+
 
 **RQ20: Show a short output snippet of pir_event_logger.py**
+t=  14.21s  seq=0001  event_time=2026-03-06T12:38:40.247Z  latency=0.021 ms
+t=  19.32s  seq=0002  event_time=2026-03-06T12:38:45.352Z  latency=0.039 ms
+t=  25.02s  seq=0003  event_time=2026-03-06T12:38:51.057Z  latency=0.019 ms
+t=  39.93s  seq=0004  event_time=2026-03-06T12:39:05.967Z  latency=0.017 ms
+t= 134.11s  seq=0005  event_time=2026-03-06T12:40:40.141Z  latency=0.017 ms
+t= 149.12s  seq=0006  event_time=2026-03-06T12:40:55.154Z  latency=0.027 ms
+t= 157.23s  seq=0007  event_time=2026-03-06T12:41:03.261Z  latency=0.015 ms
+t= 163.33s  seq=0008  event_time=2026-03-06T12:41:09.367Z  latency=0.031 ms
+t= 168.94s  seq=0009  event_time=2026-03-06T12:41:14.972Z  latency=0.022 ms
+t= 176.84s  seq=0010  event_time=2026-03-06T12:41:22.878Z  latency=0.025 ms
+t= 182.55s  seq=0011  event_time=2026-03-06T12:41:28.582Z  latency=0.013 ms
+t= 188.25s  seq=0012  event_time=2026-03-06T12:41:34.286Z  latency=0.014 ms
+t= 194.26s  seq=0013  event_time=2026-03-06T12:41:40.291Z  latency=0.021 ms
 
 ---
 
