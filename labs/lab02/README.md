@@ -2,9 +2,7 @@
 # PIR Event Logger
 
 A Raspberry Pi PIR motion sensor logger that writes structured JSONL events to disk.
-Built around a clean two-layer pipeline — `PirSampler` reads the raw GPIO pin,
-`PirInterpreter` applies anti-spam / filtering logic, and `pir_event_logger.py`
-owns the polling loop, CLI, and file I/O.
+
 
 ---
 
@@ -12,11 +10,12 @@ owns the polling loop, CLI, and file I/O.
 
 ```
 .
-├── pir_event_logger.py       # main entry point — CLI + polling loop + JSONL writer
+pir_event_logger.py      
+pir_print.py 
 └── pirlib/
     ├── __init__.py
-    ├── sampler.py            # PirSampler  – GPIO / simulation abstraction
-    └── interpreter.py        # PirInterpreter – anti-spam + semantic events
+    ├── sampler.py       
+    └── interpreter.py      
 ```
 
 ---
@@ -27,10 +26,6 @@ owns the polling loop, CLI, and file I/O.
 |---|---|
 | Python | 3.10 + |
 | RPi.GPIO | 0.7 + *(Raspberry Pi only)* |
-
-On a development machine (Linux / macOS / Windows) `RPi.GPIO` is not needed —
-the sampler automatically falls back to a built-in simulator.
-
 ---
 
 ## 1 — Create and activate a virtual environment
@@ -38,6 +33,7 @@ the sampler automatically falls back to a built-in simulator.
 ```bash
 # create
 python3 -m venv .venv --system-site-packages
+
 # activate — Linux / macOS
 source .venv/bin/activate
 
@@ -67,30 +63,15 @@ pip install --upgrade pip
 # no extra packages required — stdlib only
 ```
 
-To freeze a reproducible snapshot for later:
-
-```bash
-pip freeze > requirements.txt
-```
-
-And restore it on another machine:
-
-```bash
-pip install -r requirements.txt
-```
-
 ---
 
 ## 3 — Wire the sensor *(Raspberry Pi only)*
 
-| PIR pin | Pi header pin | Notes |
-|---|---|---|
-| VCC | Pin 2 (5 V) | some modules accept 3.3 V — check datasheet |
-| GND | Pin 6 (GND) | |
-| OUT | Pin 12 (BCM 18) | default; change with `--pin` |
-
-> **BCM numbering** is used throughout. `--pin 18` refers to BCM GPIO 18,
-> not physical pin 18.
+| Sensor Pin | Pi pin (physical) | Pi name (BCM)   | Why |
+|------------|-------------------|-----------------|-----|
+| `VCC`        | 2                 | 5V|power|
+| `GND`        | 6                 | GND|reference|
+| `OUT`        | 11                | GPIO17|input signal|
 
 ---
 
@@ -182,42 +163,8 @@ Events are written one JSON object per line (JSONL / ndjson), appended to
 
 ---
 
-## 6 — Interpreting the log
 
-Quick one-liner to pretty-print all events:
-
-```bash
-cat motion_events.jsonl | python3 -m json.tool
-```
-
-Count total events in a run:
-
-```bash
-grep -c '"event_type"' motion_events.jsonl
-```
-
-Filter by `run_id`:
-
-```bash
-grep "cd2bbc20" motion_events.jsonl | python3 -m json.tool
-```
-
-Compute average latency with Python:
-
-```python
-import json, statistics
-
-with open("motion_events.jsonl") as f:
-    records = [json.loads(line) for line in f]
-
-latencies = [r["latency_ms"] for r in records]
-print(f"avg latency: {statistics.mean(latencies):.3f} ms")
-print(f"max latency: {max(latencies):.3f} ms")
-```
-
----
-
-## 7 — Anti-spam / filtering techniques
+## 6 — Anti-spam / filtering techniques
 
 The `PirInterpreter` inside `pirlib/interpreter.py` applies five techniques
 on every raw sample before an event is ever written to disk:
@@ -232,52 +179,14 @@ on every raw sample before an event is ever written to disk:
 
 ---
 
-## 8 — Simulation mode
 
-When `RPi.GPIO` is not installed the sampler silently switches to a built-in
-simulator that generates a repeating waveform:
-
-```
-|← 4 s LOW →|← 2 s HIGH →|← 4 s LOW →| ...
-```
-
-This lets you develop, test, and inspect output on any machine without
-touching real hardware. The exact same `pir_event_logger.py` command works
-in both modes — no code changes needed.
-
----
-
-## 9 — Deactivate the virtual environment
+## 7 — Deactivate the virtual environment
 
 ```bash
 deactivate
 ```
 
----
-
-## Troubleshooting
-
-**`ModuleNotFoundError: No module named 'pirlib'`**
-Run the script from the project root (the directory that contains the
-`pirlib/` folder), or add the root to `PYTHONPATH`:
-
-```bash
-export PYTHONPATH=$(pwd)
-python pir_event_logger.py --device-id pir-01 --pin 18
-```
-
-**`RuntimeError: Not running on a RPi!`**
-`RPi.GPIO` is installed but the kernel module is not loaded (common in
-Docker / WSL). Either run on real hardware or uninstall `RPi.GPIO` to let
-the auto-simulator take over.
-
-**Events are never written**
-- Increase `--duration` or remove it (`0` = unlimited).
-- Lower `--min-high` — a value larger than your `--sample-interval` may filter
-  every pulse on a noisy setup.
-- Lower `--cooldown` for rapid-fire testing.
-- Use `--verbose` to see live status and confirm the loop is running.
-
+  
 
 # Section B 
 **RQ0: What is the commit hash of your final “end-of-lab” commit for Lab 01?**
