@@ -25,7 +25,7 @@ pir_print.py
 | Requirement | Version |
 |---|---|
 | Python | 3.10 + |
-| RPi.GPIO | 0.7 + *(Raspberry Pi only)* |
+| RPi.GPIO | 0.7 +|
 ---
 
 ## 1 — Create and activate a virtual environment
@@ -54,14 +54,9 @@ not system-wide.
 ```bash
 pip install --upgrade pip
 pip install RPi.GPIO
+pip install -r requirements.txt
 ```
 
-**On any other machine** (simulation mode, no GPIO needed):
-
-```bash
-pip install --upgrade pip
-# no extra packages required — stdlib only
-```
 
 ---
 
@@ -239,7 +234,7 @@ Motion Detected \
 Motion stopped \
 Motion Detected \
 Motion stopped \
-Motion Detected \
+Motion Detected 
 
 **RQ9: With TIME at minimum, approximately how long did OUT remain HIGH after motion?**
 With TIME at minimum it took half a second to go from `Motion Detected` to `Motion Stopped`.
