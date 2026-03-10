@@ -1,3 +1,12 @@
+# Team 8: Report LAB 2
+
+**Team Members:**
+* **Anastasios Kanellopoulos**
+* **Pasamihalis Emmanouil**
+* **Giakoumakis Emmanouil**
+
+---
+
 # Section A 
 # PIR Event Logger
 
