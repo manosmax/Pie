@@ -1,3 +1,74 @@
+# Team 8: Report LAB 3
+
+**Team Members:**
+* **Anastasios Kanellopoulos**
+* **Pasamihalis Emmanouil**
+* **Giakoumakis Emmanouil**
+
+---
+Lab 03 — PIR Motion Event Pipeline
+A producer-consumer pipeline that separates PIR acquisition from event storage using a bounded queue and two threads.
+
+Structure
+lab03/
+├── run_pipeline.py       # Main script: queue, threads, CLI, shutdown
+├── requirements.txt
+└── pirlib/
+    ├── __init__.py
+    ├── sampler.py        # GPIO read abstraction (stubs on non-Pi)
+    └── interpreter.py   # Raw bool → motion events (cooldown + min-high)
+
+
+Quick start
+pip install -r requirements.txt
+
+# Normal run (60 s, no artificial delay)
+python run_pipeline.py \
+  --device-id pir-01 \
+  --pin 18 \
+  --sample-interval 0.1 \
+  --cooldown 5.0 \
+  --min-high 0.2 \
+  --queue-size 100 \
+  --consumer-delay 0.0 \
+  --duration 60 \
+  --out motion_pipeline.jsonl \
+  --verbose
+
+# Slow-consumer experiment (simulate overload)
+python run_pipeline.py \
+  --device-id pir-01 \
+  --pin 18 \
+  --sample-interval 0.1 \
+  --cooldown 5.0 \
+  --min-high 0.2 \
+  --queue-size 100 \
+  --consumer-delay 0.5 \
+  --duration 60 \
+  --out motion_slow.jsonl \
+  --verbose
+
+
+Output format (JSONL)
+Each line is one JSON object:
+
+{"event_time":"2025-03-10T14:23:01.042Z","device_id":"pir-01","event_type":"motion","motion_state":"detected","seq":1,"run_id":"...","ingest_time":"2025-03-10T14:23:01.043Z","pipeline_latency_ms":1.2}
+
+
+Required fields: event_time, ingest_time, device_id, event_type, motion_state, seq, run_id, pipeline_latency_ms.
+
+Key design decisions
+| Concern | Choice |
+|---|---|
+| Backpressure policy | Drop-newest (put_nowait, catch Full) |
+| Queue type | queue.Queue(maxsize=N) — bounded, thread-safe |
+| Shutdown | stop_flag dict; consumer drains queue before exiting |
+| Timestamps | UTC millisecond ISO-8601, same helper everywhere |
+
+# Section B 
+
+---
+
 **RQ1: Which lecture pipeline phases do you believe you had already implemented in Lab 02?**
 **RQ2: Which part of your Lab 02 code did you reuse directly?**
 **RQ3: Which part did you have to adapt for the pipeline architecture?**
