@@ -119,11 +119,19 @@ pipeline_latency_ms — time the record spent travelling through the queue
 It is the time between when the producer acquired the event and when the consumer stored it on the JSON file.
 **RQ14: What changed when you introduced --consumer-delay 0.5?**
 The queue started filling up as there was delay from processing the produced data.
-**RQ15: Did the queue absorb the slowdown? Explain briefly using your own observations.**
+**RQ15: Did the queue absorb the slowdown? Explain briefly using your own observations** 
+Due to us using a big queue of 100 events, the queue managed to absorb the slowdown. 
 **RQ16: What is one clear sign, from your terminal status output, that the producer is outrunning the consumer?**
+One clear evidence that the proucer is outperforming the consumer is that the max_queue field starts growing unchecked. 
 **RQ17: Why is a bounded queue more informative than an unbounded queue during overload?**
-**RQ18: Why should status lines stay in the terminal instead of being mixed into the JSONL file?**
+Under normal conditions the queue should be able to absorb the bottleneck and not not fill up. An unbounded queue would increase it's size to accomodate the extra data. Thus we would not see dropped events. On a bounded queue, after some time during an overload it would fill up and dropped events would signal the overload. 
+**RQ18: Why should status lines stay in the tedrminal instead of being mixed into the JSONL file?**
+Status lines are not a type of data the consumer should store. They are not events by themselves. IF we wanted to store them as analytics, they should be stored on a different file. 
 **RQ19: Which field lets you group records from the same program execution, and why is that useful?**
+The fields `device_id` and `run_id` are relevant on that department. The first signals that the records come from the same device. The second signals that they came from the same instance of a program. 
 **RQ20: Why would an unbounded queue be dangerous on a Raspberry Pi?**
 An unbounded queue would be dangerous on a Raspberry Pi, because it has a limited amount of storage available for storing data. Filling up that storage completely will cause crashes and data loss.
 **RQ21: If you later replaced the JSONL writer with another output component, which part of your system could stay almost unchanged and why?**
+The producer reads data from the sensor and has nothing to do with data storage. Thus, it would stay the same. The consumer should be modified a bit to accomodate this change in data type. 
+
+
