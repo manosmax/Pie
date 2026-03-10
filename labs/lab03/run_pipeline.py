@@ -1,22 +1,3 @@
-"""
-run_pipeline.py
-
-Producer-consumer pipeline for PIR motion events.
-
-Usage:
-    python run_pipeline.py \
-        --device-id pir-01 \
-        --pin 18 \
-        --sample-interval 0.1 \
-        --cooldown 5.0 \
-        --min-high 0.2 \
-        --queue-size 100 \
-        --consumer-delay 0.0 \
-        --duration 60 \
-        --out motion_pipeline.jsonl \
-        --verbose
-"""
-
 import argparse
 import json
 import threading
@@ -24,16 +5,10 @@ import time
 import uuid
 from datetime import datetime, timezone
 from queue import Empty, Full, Queue
-
 from pirlib import PirInterpreter, PirSampler
 
 
-# ---------------------------------------------------------------------------
-# Timestamp helpers
-# ---------------------------------------------------------------------------
-
 def utc_now_iso() -> str:
-    """Return the current UTC time as a millisecond-precision ISO-8601 string."""
     return (
         datetime.now(timezone.utc)
         .isoformat(timespec="milliseconds")
@@ -42,14 +17,9 @@ def utc_now_iso() -> str:
 
 
 def parse_iso_utc(s: str) -> datetime:
-    """Parse a UTC ISO-8601 string (with trailing Z) back to a datetime."""
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
 
-
-# ---------------------------------------------------------------------------
 # Producer thread
-# ---------------------------------------------------------------------------
-
 def producer_loop(
     event_q: Queue,
     sampler: PirSampler,
@@ -61,7 +31,6 @@ def producer_loop(
     """
     Reads PIR samples, passes them through the interpreter, and enqueues
     structured event records.  Drops the newest record when the queue is full
-    (drop-newest backpressure policy).
     """
     run_id = str(uuid.uuid4())
     seq = 0
@@ -86,15 +55,11 @@ def producer_loop(
                 event_q.put_nowait(record)
                 metrics["produced"] += 1
             except Full:
-                # Drop newest — queue is saturated
                 metrics["dropped"] += 1
 
         time.sleep(args.sample_interval)
 
-
-# ---------------------------------------------------------------------------
 # Consumer thread
-# ---------------------------------------------------------------------------
 
 def consumer_loop(
     event_q: Queue,
@@ -135,10 +100,7 @@ def consumer_loop(
             if args.consumer_delay > 0.0:
                 time.sleep(args.consumer_delay)
 
-
-# ---------------------------------------------------------------------------
 # CLI
-# ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="PIR motion event pipeline")
@@ -168,14 +130,8 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-
 def main() -> None:
     args = parse_args()
-
-    # Shared state
     event_q: Queue = Queue(maxsize=args.queue_size)
     metrics = {
         "produced":  0,
@@ -185,14 +141,14 @@ def main() -> None:
     }
     stop_flag = {"stop": False}
 
-    # Hardware / interpreter
+    
     sampler = PirSampler(pin=args.pin)
     interp  = PirInterpreter(
         cooldown_s=args.cooldown,
         min_high_s=args.min_high,
     )
 
-    # Threads
+    
     producer_t = threading.Thread(
         target=producer_loop,
         args=(event_q, sampler, interp, args, metrics, stop_flag),
@@ -210,7 +166,6 @@ def main() -> None:
     producer_t.start()
     consumer_t.start()
 
-    # Run until duration expires or Ctrl-C
     start_t = time.time()
     try:
         while (time.time() - start_t) < args.duration:
