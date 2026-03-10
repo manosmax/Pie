@@ -1,33 +1,40 @@
-from gpiozero import DigitalInputDevice
+"""
+pirlib/sampler.py
+
+Reads a single digital sample from a PIR sensor on a GPIO pin.
+Falls back to a stub implementation when RPi.GPIO is not available
+(e.g. during development on a non-Pi machine).
+"""
+
+try:
+    import RPi.GPIO as GPIO
+    _GPIO_AVAILABLE = True
+except ImportError:
+    _GPIO_AVAILABLE = False
+
 
 class PirSampler:
     """
-    Hardware interface for the lab's PIR motion sensor.
-
-
-    Used for only reading the raw GPIO signal HIGH OR LOW.
-    Rest is handled by interpreter.
+    Manages GPIO setup for one PIR pin and exposes a read() method
+    that returns True (motion) or False (no motion).
     """
 
     def __init__(self, pin: int):
-        """
-        Initialization
-        """
         self.pin = pin
-        self.dev = DigitalInputDevice(pin)
+        self._stub = not _GPIO_AVAILABLE
+
+        if not self._stub:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(self.pin, GPIO.IN)
 
     def read(self) -> bool:
-        """
-        Read Current Sensor State.
+        """Return the current PIR state: True = motion detected."""
+        if self._stub:
+            # Stub always returns False; replace with simulation logic if needed
+            return False
+        return bool(GPIO.input(self.pin))
 
-        Returns:bool True (HIGH), False (LOW)
-        """
-        return bool(self.dev.value)
-
-    def read_raw(self) -> int:
-        """Return raw GPIO value (0 or 1)."""
-        return self.dev.value
-
-    def close(self):
-        """Release the GPIO device."""
-        self.dev.close()
+    def cleanup(self):
+        """Release GPIO resources. Call on shutdown."""
+        if not self._stub:
+            GPIO.cleanup()
