@@ -75,7 +75,7 @@ pip install -r requirements.txt
 ### Minimal (uses all defaults)
 
 ```bash
-python pir_event_logger.py --device-id pir-01 --pin 18
+python pir_event_logger.py --device-id pir-01 --pin 17
 ```
 
 ### Full example
@@ -83,7 +83,7 @@ python pir_event_logger.py --device-id pir-01 --pin 18
 ```bash
 python pir_event_logger.py \
   --device-id      pir-01              \
-  --pin            18                  \
+  --pin            17                 \
   --sample-interval 0.1               \
   --cooldown       5                   \
   --min-high       0.2                 \
@@ -94,16 +94,16 @@ python pir_event_logger.py \
 
 ### All CLI flags
 
-| Flag | Type | Default | Description |
-|---|---|---|---|
-| `--device-id` | str | *(required)* | Identifier embedded in every record |
-| `--pin` | int | `18` | BCM GPIO pin number |
-| `--sample-interval` | float | `0.1` | Seconds between sensor reads |
-| `--cooldown` | float | `5.0` | Min seconds between emitted events |
-| `--min-high` | float | `0.0` | Min seconds signal must stay HIGH to count |
-| `--duration` | float | `30.0` | Total run time in seconds (`0` = run until Ctrl-C) |
+| Flag | Type | Default               | Description |
+|---|---|-----------------------|---|
+| `--device-id` | str | *(required)*          | Identifier embedded in every record |
+| `--pin` | int | `17`                  | BCM GPIO pin number |
+| `--sample-interval` | float | `0.1`                 | Seconds between sensor reads |
+| `--cooldown` | float | `5.0`                 | Min seconds between emitted events |
+| `--min-high` | float | `0.0`                 | Min seconds signal must stay HIGH to count |
+| `--duration` | float | `30.0`                | Total run time in seconds (`0` = run until Ctrl-C) |
 | `--out` | str | `motion_events.jsonl` | Output file (append-only) |
-| `--verbose` / `-v` | flag | off | Print each event to stdout |
+| `--verbose` / `-v` | flag | off                   | Print each event to stdout |
 
 ### Exit codes
 
