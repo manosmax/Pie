@@ -6,10 +6,13 @@
 * **Giakoumakis Emmanouil**
 
 ---
-Lab 03 — PIR Motion Event Pipeline
+# Lab 03 — PIR Motion Event Pipeline
+
 A producer-consumer pipeline that separates PIR acquisition from event storage using a bounded queue and two threads.
 
-Structure
+## Structure
+
+```
 lab03/
 ├── run_pipeline.py       # Main script: queue, threads, CLI, shutdown
 ├── requirements.txt
@@ -17,9 +20,11 @@ lab03/
     ├── __init__.py
     ├── sampler.py        # GPIO read abstraction (stubs on non-Pi)
     └── interpreter.py   # Raw bool → motion events (cooldown + min-high)
+```
 
+## Quick start
 
-Quick start
+```bash
 pip install -r requirements.txt
 
 # Normal run (60 s, no artificial delay)
@@ -47,23 +52,27 @@ python run_pipeline.py \
   --duration 60 \
   --out motion_slow.jsonl \
   --verbose
+```
 
+## Output format (JSONL)
 
-Output format (JSONL)
 Each line is one JSON object:
 
+```json
 {"event_time":"2025-03-10T14:23:01.042Z","device_id":"pir-01","event_type":"motion","motion_state":"detected","seq":1,"run_id":"...","ingest_time":"2025-03-10T14:23:01.043Z","pipeline_latency_ms":1.2}
+```
 
+Required fields: `event_time`, `ingest_time`, `device_id`, `event_type`, `motion_state`, `seq`, `run_id`, `pipeline_latency_ms`.
 
-Required fields: event_time, ingest_time, device_id, event_type, motion_state, seq, run_id, pipeline_latency_ms.
+## Key design decisions
 
-Key design decisions
 | Concern | Choice |
 |---|---|
-| Backpressure policy | Drop-newest (put_nowait, catch Full) |
-| Queue type | queue.Queue(maxsize=N) — bounded, thread-safe |
-| Shutdown | stop_flag dict; consumer drains queue before exiting |
+| Backpressure policy | Drop-newest (`put_nowait`, catch `Full`) |
+| Queue type | `queue.Queue(maxsize=N)` — bounded, thread-safe |
+| Shutdown | `stop_flag` dict; consumer drains queue before exiting |
 | Timestamps | UTC millisecond ISO-8601, same helper everywhere |
+---
 
 # Section B 
 
