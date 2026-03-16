@@ -77,7 +77,6 @@ python run_pipeline.py \
   --duration 60 \
   --out motion_slow.jsonl \
   --verbose
-```
 
 ## Output format (JSONL)
 
@@ -145,11 +144,17 @@ The responsibility of the consumer is to take data from the queue, transform it,
 {"event_time": "2026-03-10T10:57:46.318Z", "device_id": "pir-01", "event_type": "motion", "motion_state": "detected", "seq": 4, "run_id": "33dc4166-aa39-4b7c-83c5-f2d5b3fb8ac9", "ingest_time": "2026-03-10T10:57:46.318Z", "pipeline_latency_ms": 0.0}
 ```
 event_time — when the producer created the record (motion was confirmed)
+
 ingest_time — when the consumer pulled it off the queue
+
 device_id — which sensor produced the event
+
 event_type / motion_state — what kind of event it was
+
 seq — position of this event within the current run, useful for detecting gaps
+
 run_id — UUID shared by all records from one execution of the program
+
 pipeline_latency_ms — time the record spent travelling through the queue
 
 **RQ13: What does pipeline_latency_ms mean in your system?**
