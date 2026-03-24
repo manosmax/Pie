@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  service1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    privileged: true
+    devices:
+      - /dev/gpiomem0:/dev/gpiomem 
+      - /dev/gpiochip0:/dev/gpiochip
+    volumes:
+      - $(pwd)/output:/data
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+volumes:
+  pipeline-data:
