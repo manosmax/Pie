@@ -27,17 +27,17 @@ Suitable for running the PIR motion detection pipeline on Raspberry Pi or compat
 
 **Build and run:**
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 **Run in background (detached mode):**
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 **View logs:**
 ```bash
-docker-compose logs -f motion-pipeline
+docker compose logs -f motion-pipeline
 ```
 
 **Stop the service:**
@@ -72,3 +72,18 @@ docker-compose down
 {"timestamp": "2024-03-01T10:30:45.123Z", "device_id": "pir-docker-01", "motion": true, "pin": 4}
 {"timestamp": "2024-03-01T10:31:50.456Z", "device_id": "pir-docker-01", "motion": false, "pin": 4}
 ```
+
+
+# Part B 
+
+RQ1: What base image did you use and why?
+
+We chose to use the image "python:3.11-slim" because it was recommended.
+
+RQ2: How many layers does your Dockerfile create? Which instructions produce new layers?
+The instructions that produce new layers are: FROM,RUN,COPY,ADD so our Dockerfile created 6 layers.
+
+RQ3: What is the size of your built image? 
+778 MB
+
+RQ4: Why do we copy requirements.txt and install dependencies before copying the rest of the code? What would happen if we reversed the order? If you copy your code first and then install packages, any small code change forces Docker to reinstall all packages from scratch significantly increasing the time needed it to run.
