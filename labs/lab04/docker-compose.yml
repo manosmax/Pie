@@ -10,7 +10,7 @@ services:
       - /dev/gpiomem0:/dev/gpiomem 
       - /dev/gpiochip0:/dev/gpiochip
     volumes:
-      - $(pwd)/output:/data
+      - pipeline-data:/data
     deploy:
       resources:
         limits:
