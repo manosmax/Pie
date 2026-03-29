@@ -115,8 +115,13 @@ restart: unless-stopped:restarts the container automatically after crashes or re
 A virtual environment isolates Python packages and dependencies. Each project gets its own versions of libraries, independent of other projects or the system Python. It does not isolate the Python interpreter , system-level libraries, environment variables, or OS resources.
 
 **RQ14: Give one concrete example where a requirements.txt and a venv would not be enough to reproduce your Lab 03 setup on a different machine.**
+The lab3 project is designed to run on a raspberry pie and interact with the arm-based pins on it. If someone where to run the project on another type of machine, that possibly doesn't have development tools like gcc or python3-dev installed, the installation woudl crash. Docker would fare better in this case as it is independent of the underlying system and would force the installation of gcc.  
+
+
 
 **RQ15: Give one scenario where a virtual environment is perhaps a better choice than Docker.**
 For a lightweight Python script on a resource-constrained edge device a virtual environment is better than Docker because it has near-zero overhead with no container runtime to run. Docker's daemon can consume significant memory and CPU power on a constrained machine. A venv allows for a clean dependency isolation without the cost.
 
 **RQ16: In the context of the Smart Wastebin project, which approach (venv or Docker) would you prefer to use for a final deployment, and why?**
+ 
+For the final project we would prefer docker over venv. With the docker image the environment and all the system tools are embedded into the image letting less room for user errors on deployment. With docker we are sure that the program will run on any device we want it to. 
