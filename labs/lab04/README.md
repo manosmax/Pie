@@ -127,5 +127,4 @@ The lab3 project is designed to run on a raspberry pie and interact with the arm
 For a lightweight Python script on a resource-constrained edge device a virtual environment is better than Docker because it has near-zero overhead with no container runtime to run. Docker's daemon can consume significant memory and CPU power on a constrained machine. A venv allows for a clean dependency isolation without the cost.
 
 **RQ16: In the context of the Smart Wastebin project, which approach (venv or Docker) would you prefer to use for a final deployment, and why?**
- 
 For the final project we would prefer docker over venv. With the docker image the environment and all the system tools are embedded into the image letting less room for user errors on deployment. With docker we are sure that the program will run on any device we want it to. 
