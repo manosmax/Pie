@@ -11,14 +11,18 @@ Suitable for running the PIR motion detection pipeline on Raspberry Pi or compat
 ## Prerequisites
 
 ### System Requirements
-- Docker installed and running
+- Docker installed 
 - Access to GPIO devices (`/dev/gpiomem0`, `/dev/gpiochip0`)
 - Linux system with proper permissions (may require `sudo`)
-- Motion Pipeline Docker image built: `motion-pipeline`
 
-### Device Setup
-- Ensure your PIR sensor is connected to GPIO pin 4 (or configure as needed)
-- Device must have appropriate GPIO permissions configured
+
+### Wire the sensor with Raspberry Pi 
+
+| Sensor Pin | Pi pin (physical) | Pi name (BCM)   | Why |
+|------------|-------------------|-----------------|-----|
+| `VCC`        | 2                 | 5V|power|
+| `GND`        | 6                 | GND|reference|
+| `OUT`        | 11                | GPIO17|input signal|
 
 ---
 
