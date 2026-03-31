@@ -1,0 +1,12 @@
+{
+  "@context": {
+    "@vocab": "https://schema.org/",
+    "sosa": "http://www.w3.org/ns/sosa/",
+     
+  },
+  "@id": "urn:wastebin1",
+  "@type": "plastic",
+  "name": "smartbinakis",
+  "description": "small plastic bin with sensors that detect incoming trash"
+  "location": ""
+}
