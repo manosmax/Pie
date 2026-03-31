@@ -1,0 +1,15 @@
+{
+  "@context": {
+    "@vocab": "https://schema.org/",
+    "sosa": "http://www.w3.org/ns/sosa/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+
+    "event_time": {
+      "@id": "something",
+      "@type": "something"
+    },
+    "device_id": "something",
+    "event_type": "@type",
+    "motion_state": "something"
+  }
+}
