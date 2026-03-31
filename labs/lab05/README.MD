@@ -1,4 +1,4 @@
-#From Raw Sensor Data to Structured Models
+# From Raw Sensor Data to Structured Models
 
 ## Overview
 
