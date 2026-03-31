@@ -4,9 +4,9 @@
     "sosa": "http://www.w3.org/ns/sosa/",
      
   },
-  "@id": "urn:wastebin1",
+  "@id": "urn:wastebin8",
   "@type": "plastic",
-  "name": "smartbinakis",
+  "name": "smartbinakis8",
   "description": "small plastic bin with sensors that detect incoming trash"
   "location": ""
 }

@@ -1,0 +1,11 @@
+{
+  "@context": {
+    "@vocab": "https://schema.org/",
+    "bot": "https://w3id.org/bot#",
+    
+  },
+  "@id": "urn:env:team08:kypes",
+  "@type": "lab",
+  "name": "kypes",
+  "description": "Enclosed computer room with steady temperature and space for sensor testing"
+}
