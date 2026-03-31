@@ -3,27 +3,22 @@
     "@vocab":    "https://schema.org/",
     "sosa":      "http://www.w3.org/ns/sosa/",
     "ssn":       "http://www.w3.org/ns/ssn/",
-    "ssn-system":"http://www.w3.org/ns/ssn/systems/",
-    "xsd":       "http://www.w3.org/2001/XMLSchema#",
-    "pipeline":  "https://github.com/team-no8/lab-5-pie/blob/main/docs/ontology.md#"
+    "pipeline":  "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#"
   },
 
   "@id":   "urn:dev:team08:pir-01",
   "@type": "sosa:Sensor",
 
-  "name":        "HC-SR501 PIR Motion Sensor — Bin 01",
-  "description": "HC-SR501 passive infrared motion sensor mounted on wastebin bin-01 in Lab Room 101. Detects motion of warm bodies by sensing differential changes in infrared radiation across two pyroelectric elements. Operated in repeat-trigger mode with software cooldown and minimum-high-duration filtering.",
-
-  "manufacturer":   "Various (generic HC-SR501 module)",
+  "name":        "HC-SR501 PIR Motion Sensor — Bin 08",
+  "description": "HC-SR501 passive infrared motion sensor. Detects motion by sensing differential changes in infrared radiation.",
   "model":          "HC-SR501",
-  "serialNumber":   "pir-01",
-  "productID":      "urn:dev:team08:pir-01",
+
 
   "sosa:observes": {
     "@type":       "sosa:ObservableProperty",
     "@id":         "urn:prop:team08:motion",
     "name":        "Motion",
-    "description": "Instantaneous motion of a warm body (temperature > ambient) within the sensor field of view. This is a discrete event property, not a continuous presence or occupancy count. The sensor output goes HIGH when motion is detected and LOW when it ceases."
+    "description": "Instantaneous motion (temperature > ambient) within the sensor field of view. This is a discrete event property. The sensor output goes HIGH when motion is detected and LOW when it ceases."
   },
 
   "ssn:hasProperty": [
@@ -55,13 +50,7 @@
       "pipeline:outputVoltageV":  { "@value": "3.3", "@type": "xsd:float" },
       "description":              "Compatible with Raspberry Pi GPIO 3.3 V logic."
     },
-    {
-      "@type": "ssn-system:OperatingRange",
-      "name":  "Operating Temperature Range",
-      "pipeline:minTempC": { "@value": "-15", "@type": "xsd:integer" },
-      "pipeline:maxTempC": { "@value": "70",  "@type": "xsd:integer" },
-      "description":       "Indoor deployment only. Ambient lab temperature expected 18–26 °C, well within range."
-    }
+
   ],
 
   "pipeline:gpioPin": {
@@ -103,7 +92,7 @@
   },
 
   "sosa:isHostedBy":  "urn:wastebin:team08:bin-01",
-  "pipeline:deployedIn": "urn:env:team08:lab-room-101",
+  "pipeline:deployedIn": "urn:env:team08:kypes",
 
   "pipeline:status": {
     "@value": "active",
