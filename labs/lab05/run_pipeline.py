@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from queue import Empty, Full, Queue
 from pirlib import PirInterpreter, PirSampler
+from models import *
 
 
 def utc_now_iso() -> str:
@@ -49,6 +50,8 @@ def producer_loop(
                 "motion_state": "detected",
                 "seq":          seq,
                 "run_id":       run_id,
+                "mounted_on":   "urn:wastebin8"
+
             }
 
             try:
