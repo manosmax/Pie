@@ -218,7 +218,11 @@ https://github.com/manosmax/Pie/blob/main/docs/Ontology#
 
 **RQ1: Which vocabularies/ontologies did you use across your models? Why did you choose them over alternatives?**
 
+We used SOSA and SSN for sensor and observation semantics, BOT for building/room topology, and XSD for datatype declarations. We also used our own pipeline: namespace covers system-internal concepts no standard vocabulary addresses.
+
 **RQ2: What properties did you include in your sensor description? Which ones came from standard vocabularies and which ones did you define yourself?**
+
+Standard vocabulary terms: sosa:observes, sosa:isHostedBy, schema:name, schema:manufacturer, schema:serialNumber, schema:dateInstalled. Custom terms under our namespace: lab801:gpioPin, lab801:operatingVoltage, lab801:detectionRangeMeters, lab801:detectionAngleDegrees, lab801:cooldownSeconds. We also defined custom terms if no standard equivalent existed.
 
 **RQ3: What properties did you include in your wastebin description? How did you decide what to include and what to leave out?**
 
@@ -228,27 +232,130 @@ https://github.com/manosmax/Pie/blob/main/docs/Ontology#
 
 **RQ6: Show your complete @context and explain each mapping. For each field, why did you choose that particular standard term (or why did you define a custom one)?**
 
+```jsonld
+{
+  "@context": {
+    "@vocab":   "https://schema.org/",
+    "sosa":     "http://www.w3.org/ns/sosa/",
+    "ssn":      "http://www.w3.org/ns/ssn/",
+    "xsd":      "http://www.w3.org/2001/XMLSchema#",
+    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#",
+
+    "event_time": {
+      "@id":   "sosa:resultTime",
+      "@type": "xsd:dateTime"
+    },
+
+    "ingest_time": {
+      "@id":   "pipeline:ingestTime",
+      "@type": "xsd:dateTime"
+    },
+
+    "device_id": {
+      "@id":   "sosa:madeBySensor",
+      "@type": "@id"
+    },
+
+    "mounted_on": {
+      "@id":   "sosa:isHostedBy",
+      "@type": "@id"
+    },
+
+    "event_type": {
+      "@id":   "sosa:observedProperty",
+      "@type": "@id"
+    },
+
+    "motion_state": {
+      "@id":   "sosa:hasSimpleResult",
+      "@type": "xsd:string"
+    },
+
+    "seq": {
+      "@id":   "pipeline:sequenceNumber",
+      "@type": "xsd:integer"
+    },
+
+    "run_id": {
+      "@id":   "pipeline:runId",
+      "@type": "xsd:string"
+    },
+
+    "pipeline_latency_ms": {
+      "@id":   "pipeline:latencyMs",
+      "@type": "xsd:decimal"
+    }
+  }
+}
+
+```
+1. @vocab: schema.org — default namespace for any unmapped term, so bare fields like name resolve to schema:name automatically.
+sosa/ssn/xsd — standard W3C prefixes for sensor semantics and XML datatypes.
+
+2. pipeline: — our custom namespace pointing to /blob/main/docs/ontology.md# in our repo; terms without a standard equivalent live here.
+
+3. event_time → sosa:resultTime — the standard term for when the observation result was produced by the sensor.
+
+4. ingest_time → pipeline:ingestTime — no standard term exists for "time the consumer received the message".
+
+5. device_id → sosa:madeBySensor — formally links the observation to the sensor entity.
+
+6. mounted_on → sosa:isHostedBy — standard SOSA term expressing which platform the wastebin hosts the sensor.
+
+7. event_type → sosa:observedProperty — identifies the motion phenomenon being observed.
+
+8. motion_state → sosa:hasSimpleResult — carries the actual observation value ("detected" / "clear").
+
+9. seq → pipeline:sequenceNumber — pipeline-internal counter with no SOSA equivalent.
+
+10. run_id → pipeline:runId — identifies which pipeline execution session produced the record; custom term.
+
+11. pipeline_latency_ms → pipeline:latencyMs — time between event creation and consumer ingestion.
+
 **RQ7: How did you define your custom namespace? What URL did you use and why?**
+
+https://github.com/manosmax/Pie/blob/main/docs/ontology.md#
+
+The URL used is easy to find and closely associated with the rest of our project. The # means each term becomes a URL fragment. This turns the namespace into real, living documentation rather than just a naming convention.
 
 **RQ8: Take one field from your old pipeline output (e.g., event_time). What did it mean before? What does it mean now that it is mapped to a standard term? What is the practical difference?**
 
 **RQ9: What is the role of @context in JSON-LD? What happens if you remove it is the JSON still valid? Is it still self-describing?**
 
+@context maps local field names to globally unambiguous URIs. Without it, the JSON is still syntactically valid, but no longer self-describing.
+
+
 **RQ10: How did you handle the @context in your streaming JSONL pipeline, inline, external reference, or something else? What are the trade-offs of your choice?**
+
+We chose an external reference:"models/context.jsonld". This keeps individual lines short and avoids repeating. The trade-off is that the file is no longer self-contained, a reader needs access to the context file.
 
 **RQ11: Include your entity-relationship diagram in the report. Explain the diagram briefly, what are the entities, what are the key relationships, and how does an observation connect to the rest of the model?**
 
 **RQ12: Another team uses a different motion sensor (e.g., microwave radar instead of PIR) but follows the same JSON-LD context. Could a downstream application process both teams’ data without modification? Why or why not?**
 
+If the other team used a downstream application consuming events by context terms, not hardcoded field names, would process both pipelines identically. The sensor model files differ, but the observation record structure is shared. So the answer is yes, if they follow the same JSON-LD context.
+
 **RQ13: You need to add an ultrasonic distance sensor to measure bin fill level. What new JSON-LD files would you create? What would you change in existing files? What would stay the same?**
+
+We would create a new model for the sensor with its own attributes like @id, sosa:observes etc. We would also need to modify the wastebin.jsonld and context.jsonld to include the URN alongside the PIR.
 
 **RQ14: What properties are missing from your models that a real-world deployment would need? Name at least three and explain why they matter.**
 
+If we were to deploy the sensor in a real-life environment. We would need to include the battery level of the sensor and its firmware version.
+
 **RQ15: Look at one domain-specific data model repository (e.g., SAREF, Smart Data Models, SSN). Find a model related to waste management, sensors, or smart buildings. How does it compare to what you built?**
+
+Our costum namespace adds more infrastructure terms that the existing domain model omits.
 
 **RQ16: In the DIKW pyramid from the lecture, where does your raw Lab 03 JSONL output sit? Where does the JSON-LD version sit? What moved it up the pyramid?**
 
+In Lab 03 we had Data which we processed and it became information. Now we also have knowledge because of our models which have created an infrastructure, giving meaning that is embedded in our project, not our teams memory.
+
 **RQ17: In your own words, what is the difference between data that works and data that communicates information?**
 
+Data can work even if it is only understood by the system or person that produces it. However if a different developer or system needs to proces the data there will be compatibility issues with what each value or measurement means. Data that communicates information can work for different systems because it carries knowledge that makes it legible by everyone.
+
 **RQ18: If you had to explain to a non-technical person why your pipeline now produces “better” data, what would you say?**
+
+We would explain to a non-technical person that our data used to only be managable by our team. Now the data we collect are more legible by other systems or by the community making it available for wider usage.
 
