@@ -35,7 +35,7 @@ python run_pipeline.py \
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `--device-id` | str | `pir-01` | Logical sensor name embedded in every record |
-| `--pin` | int | `18` | BCM GPIO pin number |
+| `--pin` | int | `17` | BCM GPIO pin number |
 | `--sample-interval` | float | `0.1` | Seconds between reads (0.1 s = 10 Hz) |
 | `--cooldown` | float | `5.0` | Min seconds between emitted events |
 | `--min-high` | float | `0.2` | Min seconds signal must stay HIGH before emitting |
@@ -208,7 +208,7 @@ SENSOR {
 
 ```
 https://github.com/manosmax/Pie/blob/main/docs/Ontology#
----
+```
 
 
 
@@ -222,13 +222,38 @@ We used SOSA and SSN for sensor and observation semantics, BOT for building/room
 
 **RQ2: What properties did you include in your sensor description? Which ones came from standard vocabularies and which ones did you define yourself?**
 
-Standard vocabulary terms: sosa:observes, sosa:isHostedBy, schema:name, schema:manufacturer, schema:serialNumber, schema:dateInstalled. Custom terms under our namespace: lab801:gpioPin, lab801:operatingVoltage, lab801:detectionRangeMeters, lab801:detectionAngleDegrees, lab801:cooldownSeconds. We also defined custom terms if no standard equivalent existed.
+We defined on our own some of the properties like minHighS, gpioPin, cooldownS, sampleIntervalS, operatingMode,status . The most important are the following : 
+
+```
+string  id                  "urn:dev:team08:pir-01"
+string  type                "sosa:Sensor"
+string  model               "HC-SR501"
+string  observes            "Motiion"
+int     gpioPin             "17"
+int     physicalPin         "11"
+float   sampleIntervalS     "0.1"
+float   cooldownS           "5.0"
+float   minHighS            "0.2"
+string  operatingMode       "repeat-trigger"
+string  status              "active"
+```
 
 **RQ3: What properties did you include in your wastebin description? How did you decide what to include and what to leave out?**
 
+In the wastebin, we included the wastebin's material, color, diameter, height and wastetype that help someone identify the bin in real life and calculate it's capacity. Further information would be redundant. 
+
 **RQ4: How did you model the relationships between sensor, wastebin, and environment? Show the relevant @id references from each JSON-LD file.**
 
+The sensor is hosted by the wastebin and deployed in the kypes environment. The wastebin in turn, hosts the sensor and is located in the kypes environment. Finally the kypes environment, contains the wastebin and hosts the sensor. We can see that all the relationships are bidirectional. 
+- id_env : urn:env:kypes
+- id_sensor : urn:dev:team08:pir-01
+- id_wastebin : urn:wastebin:bin-01
+
+
 **RQ5: Were there properties you wanted to include but could not find a standard term for? How did you handle them?**
+
+Yes, we created our own ontology to define properties we couldn't find standard terms for such as sequenceNumber, counter and runid. 
+
 
 **RQ6: Show your complete @context and explain each mapping. For each field, why did you choose that particular standard term (or why did you define a custom one)?**
 
@@ -320,6 +345,15 @@ The URL used is easy to find and closely associated with the rest of our project
 
 **RQ8: Take one field from your old pipeline output (e.g., event_time). What did it mean before? What does it mean now that it is mapped to a standard term? What is the practical difference?**
 
+Before event_type, had a value of motion. This is arbitrary and even we weren't really sure of what this meant. Now sosa defines it specificaly as an observed property, an instantaneous motion (temperature > ambient) within the sensor field of view.
+```
+    "event_type": {
+      "@id": "sosa:observedProperty",
+      "@type": "@id"
+    },
+```
+
+
 **RQ9: What is the role of @context in JSON-LD? What happens if you remove it is the JSON still valid? Is it still self-describing?**
 
 @context maps local field names to globally unambiguous URIs. Without it, the JSON is still syntactically valid, but no longer self-describing.
@@ -327,9 +361,16 @@ The URL used is easy to find and closely associated with the rest of our project
 
 **RQ10: How did you handle the @context in your streaming JSONL pipeline, inline, external reference, or something else? What are the trade-offs of your choice?**
 
-We chose an external reference:"models/context.jsonld". This keeps individual lines short and avoids repeating. The trade-off is that the file is no longer self-contained, a reader needs access to the context file.
+We chose an inline approach. We print it whole with each record. It is visible easily by the viewer but results in longer records. 
 
 **RQ11: Include your entity-relationship diagram in the report. Explain the diagram briefly, what are the entities, what are the key relationships, and how does an observation connect to the rest of the model?**
+
+The sensor is hosted by the wastebin and deployed in the kypes environment. The wastebin in turn, hosts the sensor and is located in the kypes environment. Finally the kypes environment, contains the wastebin and hosts the sensor. We can see that all the relationships are bidirectional. 
+
+The observation connects to the model via the id's of the entities. Specifically, the   "device_id": "urn:dev:team08:pir-01" is listed, and every field is linked through the context file with the vocabularies.
+
+
+![Smart Wastebin Deployment](./image.png)
 
 **RQ12: Another team uses a different motion sensor (e.g., microwave radar instead of PIR) but follows the same JSON-LD context. Could a downstream application process both teams’ data without modification? Why or why not?**
 
@@ -341,9 +382,13 @@ We would create a new model for the sensor with its own attributes like @id, sos
 
 **RQ14: What properties are missing from your models that a real-world deployment would need? Name at least three and explain why they matter.**
 
-If we were to deploy the sensor in a real-life environment. We would need to include the battery level of the sensor and its firmware version.
+If we were to deploy the sensor in a real-life environment. We would need to include the battery level of the sensor and it's firmware version.
 
 **RQ15: Look at one domain-specific data model repository (e.g., SAREF, Smart Data Models, SSN). Find a model related to waste management, sensors, or smart buildings. How does it compare to what you built?**
+
+On the Smart Data Models we can find the WasteContainer model. While our model focuses on deployment and electronics, the former specializes in logistics and analysis. 
+
+link : https://github.com/smart-data-models/dataModel.WasteManagement/blob/master/WasteContainer/README.md 
 
 Our costum namespace adds more infrastructure terms that the existing domain model omits.
 
