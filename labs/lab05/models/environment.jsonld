@@ -15,16 +15,15 @@
 
   "pipeline:spatialHierarchy": {
     "campus":   "University Campus",
-    "building": "TBD",
-    "floor":    "TBD",
+    "building": "basiko",
+    "floor":    "0",
     "room":     "Kypes Lab"
   },
 
-  "pipeline:roomNumber":   "TBD",
+  "pipeline:roomNumber":   "02",
   "pipeline:indoorOutdoor": "indoor",
 
   "pipeline:trafficLevel":    "high",
-  "pipeline:collectionRoute": "route-a",
 
   "pipeline:contains": [
     "urn:wastebin:bin-01"

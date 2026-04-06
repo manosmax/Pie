@@ -17,7 +17,6 @@
   "pipeline:diameterCm":     { "@value": "8",  "@type": "xsd:integer" },
 
   "pipeline:wasteType":      "general",
-  "pipeline:collectionZone": "zone-a",
   "pipeline:status":         "active",
 
   "sosa:hosts": [

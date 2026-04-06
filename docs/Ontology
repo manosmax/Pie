@@ -33,7 +33,6 @@
 |------|------|-------------|
 | `capacity` | `xsd:integer` | Max volume in litres. |
 | `wasteType` | `xsd:string` | `general`, `recyclable`, `organic`, or `hazardous`. |
-| `collectionZone` | `xsd:string` | Zone ID for routing collection. |
 | `status` | `xsd:string` | `active`, `full`, or `maintenance`. |
 | `locatedIn` | `@id` | Links bin → environment (`urn:env:*`). |
 
@@ -43,7 +42,6 @@
 |------|------|-------------|
 | `spatialHierarchy` | object | Containment chain: campus → building → floor → room. Use `TBD` for unknowns. |
 | `trafficLevel` | `xsd:string` | Pedestrian activity: `low`, `medium`, or `high`. |
-| `collectionRoute` | `xsd:string` | Route ID servicing this environment. |
 | `contains` | `@id[]` | Wastebins physically inside this environment. |
 | `hostsSensors` | `@id[]` | All sensors deployed in this environment. |
 
