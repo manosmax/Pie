@@ -4,7 +4,7 @@
     "sosa":     "http://www.w3.org/ns/sosa/",
     "ssn":      "http://www.w3.org/ns/ssn/",
     "xsd":      "http://www.w3.org/2001/XMLSchema#",
-    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#",
+    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/Ontology#",
 
     "event_time": {
       "@id":   "sosa:resultTime",
