@@ -1,12 +1,30 @@
 {
   "@context": {
-    "@vocab": "https://schema.org/",
-    "sosa": "http://www.w3.org/ns/sosa/",
-     
+    "@vocab":    "https://schema.org/",
+    "sosa":      "http://www.w3.org/ns/sosa/",
+    "pipeline":  "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#"
   },
-  "@id": "urn:wastebin8",
-  "@type": "plastic",
-  "name": "smartbinakis8",
-  "description": "small plastic bin with sensors that detect incoming trash"
-  "location": ""
+
+  "@id":   "urn:wastebin:bin-01",
+  "@type": "sosa:Platform",
+
+  "name":        "Wastebin 01",
+  "description": "General-purpose  waste bin deployed in the Kypes lab.",
+
+  "pipeline:material":       "plastic",
+  "pipeline:color":          "grey",
+  "pipeline:heightCm":       { "@value": "18",  "@type": "xsd:integer" },
+  "pipeline:diameterCm":     { "@value": "8",  "@type": "xsd:integer" },
+
+  "pipeline:wasteType":      "general",
+  "pipeline:collectionZone": "zone-a",
+  "pipeline:status":         "active",
+
+  "sosa:hosts": [
+    "urn:dev:pir-01"
+  ],
+
+  "pipeline:locatedIn": "urn:env:kypes",
+
+  "pipeline:installedOn": { "@value": "2026-04-01", "@type": "xsd:date" }
 }

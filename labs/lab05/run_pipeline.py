@@ -50,7 +50,7 @@ def producer_loop(
                 "motion_state": "detected",
                 "seq":          seq,
                 "run_id":       run_id,
-                "mounted_on":   "urn:wastebin8"
+                "mounted_on":   "urn:wastebin:team08:bin-01"
 
             }
 
@@ -110,7 +110,7 @@ def parse_args() -> argparse.Namespace:
 
     p.add_argument("--device-id",        default="pir-01",
                    help="Logical name for this sensor device")
-    p.add_argument("--pin",              type=int,   default=18,
+    p.add_argument("--pin",              type=int,   default=17,
                    help="BCM GPIO pin number the PIR is wired to")
     p.add_argument("--sample-interval",  type=float, default=0.1,
                    help="Seconds between PIR reads (e.g. 0.1 = 10 Hz)")

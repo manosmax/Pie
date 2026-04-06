@@ -18,7 +18,7 @@
   "sosa:observes": {
     "@type":       "sosa:ObservableProperty",
     "@id":         "urn:prop:team08:motion",
-    "name":        "Motion",
+    "name":        "Motiion",
     "description": "Instantaneous motion (temperature > ambient) within the sensor field of view. This is a discrete event property. The sensor output goes HIGH when motion is detected and LOW when it ceases."
   },
 
@@ -94,8 +94,8 @@
     "@type":  "xsd:string"
   },
 
-  "sosa:isHostedBy":    "urn:wastebin:team08:bin-01",
-  "pipeline:deployedIn": "urn:env:team08:kypes",
+  "sosa:isHostedBy":    "urn:wastebin:bin-01",
+  "pipeline:deployedIn": "urn:env:kypes",
 
   "pipeline:status": {
     "@value": "active",
