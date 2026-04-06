@@ -94,8 +94,8 @@
     "@type":  "xsd:string"
   },
 
-  "sosa:isHostedBy":    "urn:wastebin:bin-01",
-  "pipeline:deployedIn": "urn:env:kypes",
+  "sosa:isHostedBy":    "urn:wastebin:team08:bin-01",
+  "pipeline:deployedIn": "urn:env:team08:kypes",
 
   "pipeline:status": {
     "@value": "active",
