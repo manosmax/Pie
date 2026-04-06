@@ -46,3 +46,5 @@
 | `collectionRoute` | `xsd:string` | Route ID servicing this environment. |
 | `contains` | `@id[]` | Wastebins physically inside this environment. |
 | `hostsSensors` | `@id[]` | All sensors deployed in this environment. |
+
+
