@@ -85,7 +85,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--queue-size",       type=int,   default=100)
     p.add_argument("--consumer-delay",   type=float, default=0.0)
     p.add_argument("--duration",         type=float, default=60.0)
-    p.add_argument("--out",              default="motion_pipeline.jsonl")
     p.add_argument("--verbose",          action="store_true")
     p.add_argument("--host",             default="localhost")          
     p.add_argument("--port",             type=int,   default=1883)   
