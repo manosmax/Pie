@@ -265,12 +265,22 @@ The callback pattern is an interrupt event for when a message arrives and is def
 
 **RQ12: You stopped the consumer and kept the producer running. What happened to the messages published during that time? Were they delivered when the consumer restarted?**
 
+The consumer received only the last message as we set the `RETAIN` flag to `1`.
+
 **RQ13: You ran two consumers on the same topic. Did both receive every message? Why does this matter for building scalable systems?**
 
+Both consumers received the messages. This is extremely important as we can use different topics for different consumers to build large scalable systems, that are efficient and usable by a large number of consumers.
+
 **RQ14: Could you run the producer on one Raspberry Pi and the consumer on a different machine (e.g., your laptop)? What would you need to change?**
+
+We would need to execute code in both machines to establish MQTT and over the internet communication.
 
 # Reflection
 
 **RQ15: In your own words, what does “decoupling” mean in the context of pub/sub? What are the practical benefits?**
 
+In our own words, decoupling in the context of pub/sub means running two processes separately and independently from each other. In this case, the publisher and the subscriber. The benefits are asynchronous communication, flexibility for other applications that want to use information and more features and redundancy than traditional TCP/UDP communication.
+
 **RQ16: If the Mosquitto broker itself crashes, what happens to your system? How could you mitigate this?**
+
+The broker is a single-failure point which is a strong vulnerability in pub/sub systems. We could mitigate this issue by maybe defaulting to another broker or service once a crash or system downtime is detected.
