@@ -1,5 +1,5 @@
 gpiozero>=2.0.1
-RPi.GPIO>=0.7.1      
+lgpio 
 rpi-lgpio
 paho-mqtt
 
