@@ -54,6 +54,7 @@ def producer_loop(
 
         for _event in interp.update(raw, t):
             seq += 1
+            print("DEBUG : event we get!!")
             record = {
                 "@context": jsonld_context,
                 "@id": f"urn:event:{run_id}:{seq}",
@@ -153,17 +154,17 @@ def main() -> None:
         args=(event_q, sampler, interp, args, metrics, stop_flag),
         daemon=True,
     )
-    publisher_t = threading.Thread(
-        target=publisher_loop,
-        args=(event_q, args, metrics, stop_flag),  
-        daemon=True,
-    )
+    #publisher_t = threading.Thread(
+    #    target=publisher_loop,
+    #    args=(event_q, args, metrics, stop_flag),  
+    #    daemon=True,
+    #)
 
     print(f"[main] Starting pipeline device={args.device_id} pin={args.pin} "
           f"duration={args.duration}s")
 
     producer_t.start()
-    publisher_t.start()
+    #publisher_t.start()
 
     start_t = time.time()
     try:
@@ -181,7 +182,7 @@ def main() -> None:
     finally:
         stop_flag["stop"] = True
         producer_t.join()
-        publisher_t.join()
+        #publisher_t.join()
         sampler.cleanup()
 
     print(
