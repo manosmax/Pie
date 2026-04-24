@@ -83,7 +83,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--pin",              type=int,   default=17)
     p.add_argument("--sample-interval",  type=float, default=0.1)
     p.add_argument("--cooldown",         type=float, default=5.0)
-    p.add_argument("--min-high",         type=float, default=0.2)
+    p.add_argument("--min-high",         type=float, default=0.0)
     p.add_argument("--queue-size",       type=int,   default=100)
     p.add_argument("--consumer-delay",   type=float, default=0.0)
     p.add_argument("--duration",         type=float, default=600.0)
@@ -165,7 +165,7 @@ def main() -> None:
 
     producer_t.start()
     #publisher_t.start()
-
+    producer_loop() 
     start_t = time.time()
     try:
         while (time.time() - start_t) < args.duration:
