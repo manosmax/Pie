@@ -1,3 +1,4 @@
+# Lab 06 — Messaging via MQTT
 
 ## How to Run
 
@@ -12,44 +13,90 @@
 ### Install dependencies
 
 ```bash
-cd labs/lab05
+cd labs/lab06
 pip install -r requirements.txt
 ```
 
-### Run the pipeline
+### Start the broker
 
 ```bash
-python run_pipeline.py \
+sudo systemctl start mosquitto
+sudo systemctl enable mosquitto   # auto-start on boot
+```
+
+Confirm it is running:
+
+```bash
+systemctl status mosquitto
+```
+
+You should see `Active: active (running)` on port `1883`.
+
+### Run the consumer
+
+Start the consumer first so it is subscribed before events arrive:
+
+```bash
+python consumer.py \
+  --broker localhost \
+  --port 1883 \
+  --topic "smartbin/bin-01/pir-01/events" \
+  --qos 1 \
+  --out output/events.jsonl \
+  --verbose
+```
+
+### Run the producer
+
+In a second terminal:
+
+```bash
+python producer.py \
+  --broker localhost \
+  --port 1883 \
+  --topic smartbin/bin-01/pir-01/events \
   --device-id pir-01 \
   --pin 17 \
   --sample-interval 0.1 \
   --cooldown 5.0 \
   --min-high 0.2 \
-  --duration 60 \
-  --out motion_pipeline.jsonl \
+  --qos 1 \
   --verbose
 ```
 
 ### Parameter reference
 
+**producer.py**
+
 | Parameter | Type | Default | Description |
 |---|---|---|---|
+| `--broker` | str | `localhost` | Hostname or IP of the MQTT broker |
+| `--port` | int | `1883` | Broker port |
+| `--topic` | str | — | MQTT topic to publish events to |
 | `--device-id` | str | `pir-01` | Logical sensor name embedded in every record |
 | `--pin` | int | `17` | BCM GPIO pin number |
 | `--sample-interval` | float | `0.1` | Seconds between reads (0.1 s = 10 Hz) |
 | `--cooldown` | float | `5.0` | Min seconds between emitted events |
 | `--min-high` | float | `0.2` | Min seconds signal must stay HIGH before emitting |
-| `--queue-size` | int | `100` | Max records the bounded queue can hold |
-| `--consumer-delay` | float | `0.0` | Artificial per-record delay in the consumer |
-| `--duration` | float | `60.0` | Total run time in seconds (0 = run until Ctrl-C) |
-| `--out` | str | `motion_pipeline.jsonl` | Output file path (append mode) |
-| `--verbose` / `-v` | flag | off | Print status to stdout every second |
+| `--qos` | int | `1` | MQTT QoS level (0, 1, or 2) |
+| `--verbose` / `-v` | flag | off | Print publish status to stdout |
 
+**consumer.py**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `--broker` | str | `localhost` | Hostname or IP of the MQTT broker |
+| `--port` | int | `1883` | Broker port |
+| `--topic` | str | — | MQTT topic to subscribe to (wildcards supported) |
+| `--qos` | int | `1` | MQTT QoS level (0, 1, or 2) |
+| `--out` | str | `motion_events.jsonl` | Output file path (append mode) |
+| `--verbose` / `-v` | flag | off | Print received events and metrics to stdout |
 
 ---
+
 ## Pipeline Output Format
 
-A pipeline event after the Lab 05 changes:
+A pipeline event as written by the consumer:
 
 ```json
 {
@@ -105,113 +152,95 @@ A pipeline event after the Lab 05 changes:
   "seq": 1,
   "run_id": "383f7d25-1535-4e05-b8da-90d02daf3601",
   "mounted_on": "urn:wastebin:bin-01",
-  "ingest_time": "2026-04-06T15:23:05.131Z",
-  "pipeline_latency_ms": 0.0
+  "ingest_time": "2026-04-06T15:23:05.148Z",
+  "pipeline_latency_ms": 17.3
 }
 ```
+
+---
 
 ## Repository Structure
 
 ```
 /
-├── docs/
-│   └── ontology.md                  ← Custom term definitions (our namespace)
 ├── labs/
-│   └── lab05/
+│   └── lab06/
 │       ├── README.md                ← This file
-│       ├── models/
-│       │   ├── sensor.jsonld        ← HC-SR501 PIR sensor description
-│       │   ├── wastebin.jsonld      ← Wastebin entity description
-│       │   ├── environment.jsonld   ← Room / deployment space description
-│       │   └── context.jsonld       ← Shared @context for pipeline events
 │       ├── requirements.txt
-│       ├── run_pipeline.py
+│       ├── producer.py              ← Reads PIR sensor, publishes to MQTT
+│       ├── consumer.py              ← Subscribes to MQTT, enriches, writes JSONL
 │       └── pirlib/
 │           ├── __init__.py
 │           ├── sampler.py
 │           └── interpreter.py
 ```
 
-
+---
 
 ## Overview
 
-This lab builds on the producer/consumer pipeline from Lab 04. Raw pipeline output such as the record below is not specific. Thus jsonld models are used in order to make every field accurately determined. We solve this by modelling every entity in the system — the **sensor**, the **wastebin** it is mounted on, and the **environment** it is deployed in — as JSON-LD documents.
+This lab decouples the producer and consumer from Lab 05 using the **pub/sub pattern**. Instead of two threads sharing a Python `Queue` in the same process, the producer and consumer are now independent scripts that communicate through a **Mosquitto MQTT broker**.
 
-**Vocabularies used:**
+The producer publishes motion events to a topic. The consumer subscribes to that topic and receives them via a callback. The broker sits in between — neither side knows about the other, and they do not need to be running at the same time.
 
-| Prefix | Namespace | Why |
-|---|---|---|
-| `sosa` | `http://www.w3.org/ns/sosa/` | `Sensor`, `ObservableProperty`, `madeBySensor`, `resultTime` |
-| `ssn` | `http://www.w3.org/ns/ssn/` | `hasProperty`, `SystemCapability` |
-| `schema` | `https://schema.org/` | `name`, `description`, `manufacturer` |
-| `pipeline` | `…/docs/ontology.md#` | `gpioPin`, `cooldownS`, `minHighS`, `sampleIntervalS` |
+**MQTT concepts used:**
+
+| Concept | What it does |
+|---|---|
+| **Topic hierarchy** | `/`-separated paths that organise messages (e.g. `smartbin/bin-01/pir-01/events`) |
+| **Wildcards** | `+` matches one level; `#` matches any number of levels |
+| **QoS 0** | At most once — fire and forget, no acknowledgement |
+| **QoS 1** | At least once — acknowledged, may duplicate |
+| **QoS 2** | Exactly once — four-step handshake, highest overhead |
+| **Retained messages** | Broker stores the last message on a topic; new subscribers receive it immediately |
 
 ---
 
-## Entity Diagram
+## Topic Structure
 
 ```
-Diagram
-    ### MODELS
-
-SENSOR {
-        string  id                  "urn:dev:team08:pir-01"
-        string  type                "sosa:Sensor"
-        string  model               "HC-SR501"
-        string  observes            "Motiion"
-        int     gpioPin             "17"
-        int     physicalPin         "11"
-        float   sampleIntervalS     "0.1"
-        float   cooldownS           "5.0"
-        float   minHighS            "0.2"
-        string  operatingMode       "repeat-trigger"
-        string  status              "active"
-    }
-
-    WASTEBIN {
-        string  id              "urn:wastebin:bin-01"
-        string  type            "sosa:Platform"
-        string  name            "Wastebin 01"
-        string  material        "plastic"
-        string  color           "grey"
-        int     heightCm        "18"
-        int     diameterCm      "8"
-        string  wasteType       "general"
-        string  status          "active"
-    }
-
-    ENVIRONMENT {
-        string  id              "urn:env:kypes"
-        string  type            "bot:Space"
-        string  name            "Kypes Lab"
-        string  building        "basiko"
-        string  roomNumber      "02"
-        string  trafficLevel    "high"
-        string  setting         "indoor"
-    }    
-    
-    ### Relationship summary
-
-    SENSOR      ||--|| WASTEBIN     : "sosa:isHostedBy"
-    SENSOR      ||--|| ENVIRONMENT  : "pipeline:deployedIn"
-    WASTEBIN    ||--|| ENVIRONMENT  : "pipeline:locatedIn"
-    WASTEBIN    ||--|| SENSOR       : "sosa:hosts" 
-    ENVIRONMENT ||--|| WASTEBIN     : "pipeline:contains"
-    ENVIRONMENT ||--|| SENSOR       : "pipeline:hostsSensors"
-
-``` 
-
-
-
-## Custom Ontology Namespace
-
-```
-https://github.com/manosmax/Pie/blob/main/docs/Ontology#
+smartbin/
+└── bin-01/
+    └── pir-01/
+        ├── events      ← motion event records (JSON payload)
+        └── status      ← retained online / offline heartbeat
 ```
 
+**Subscription patterns supported:**
 
+| Pattern | Receives |
+|---|---|
+| `smartbin/bin-01/pir-01/events` | Events from this sensor only |
+| `smartbin/bin-01/#` | All messages from this bin (events + status) |
+| `smartbin/+/pir-01/events` | Motion events from pir-01 across all bins |
+| `smartbin/#` | Everything — all bins, all sensors, all topics |
 
+**Design rationale:**
+The four-level hierarchy `smartbin / bin / sensor / message-type` supports both narrow subscriptions (a single sensor's events) and broad ones (all sensors on a bin, or the same sensor type across all bins) using standard MQTT wildcards. The `status` subtopic is published with the retain flag so any new subscriber learns the sensor's current state without waiting for the next update.
+
+---
+
+## System Architecture
+
+```
+┌──────────────────────────────┐        MQTT        ┌─────────────────────────┐
+│          producer.py         │ ─── publish ─────▶ │      Mosquitto broker   │
+│                              │                     │                         │
+│  PIR sampler  →  interpreter │   topic:            │  port 1883              │
+│  build record →  serialize   │   smartbin/         │                         │
+│  publish JSON                │   bin-01/           └────────────┬────────────┘
+└──────────────────────────────┘   pir-01/                        │
+                                   events                      subscribe
+                                                                   │
+                                                      ┌────────────▼────────────┐
+                                                      │       consumer.py       │
+                                                      │                         │
+                                                      │  on_message callback    │
+                                                      │  add ingest_time        │
+                                                      │  add latency_ms         │
+                                                      │  write JSONL            │
+                                                      └─────────────────────────┘
+```
 ---
 
 # Part B 
