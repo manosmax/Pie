@@ -1,14 +1,12 @@
 import argparse
+import json
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
 from queue import Empty, Full, Queue
 from pirlib import PirInterpreter, PirSampler
-import threading
-import paho.mqtt.client as mqtt
-import logging
-import json
-
+from models import *
 
 def utc_now_iso() -> str:
     return (
@@ -54,6 +52,7 @@ def producer_loop(
 
         for _event in interp.update(raw, t):
             seq += 1
+
             record = {
                 "@context": jsonld_context,
                 "@id": f"urn:event:{run_id}:{seq}",
@@ -66,104 +65,106 @@ def producer_loop(
                 "run_id": run_id,
                 "mounted_on": "urn:wastebin:bin-01"
             }
+
             try:
                 event_q.put_nowait(record)
-                print(event_q) 
                 metrics["produced"] += 1
             except Full:
                 metrics["dropped"] += 1
 
         time.sleep(args.sample_interval)
 
-
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="PIR motion event pipeline")
-    p.add_argument("--device-id",        default="urn:dev:team08:pir-01")
-    p.add_argument("--pin",              type=int,   default=17)
-    p.add_argument("--sample-interval",  type=float, default=0.1)
-    p.add_argument("--cooldown",         type=float, default=5.0)
-    p.add_argument("--min-high",         type=float, default=0.2)
-    p.add_argument("--queue-size",       type=int,   default=100)
-    p.add_argument("--consumer-delay",   type=float, default=0.0)
-    p.add_argument("--duration",         type=float, default=600.0)
-    p.add_argument("--verbose",          action="store_true")
-    p.add_argument("--host",             default="localhost")          
-    p.add_argument("--port",             type=int,   default=1883)   
-    p.add_argument("--qos",              type=int,   default=1)      
-    p.add_argument("--topic",            default="smartbin/bin-01/pir-01/events")  
-    return p.parse_args()
-
-
-logger = logging.getLogger(__name__)
-
-def publisher_loop(
+def consumer_loop(
     event_q: Queue,
-    args,
+    out_path: str,
+    args: argparse.Namespace,
     metrics: dict,
     stop_flag: dict,
 ) -> None:
-    topic, qos = args.topic, args.qos
+    with open(out_path, "a", encoding="utf-8") as f:
+        while not stop_flag["stop"] or not event_q.empty():
+            try:
+                record = event_q.get(timeout=0.5)
+            except Empty:
+                continue
 
-    client = mqtt.Client()
-    client.will_set(f"{topic}/status", "offline", qos=qos, retain=True)
-    client.on_publish = lambda *_: metrics.update(published=metrics["published"] + 1) 
+            ingest_ts = utc_now_iso()
+            record["ingest_time"] = ingest_ts
 
-    client.connect(args.host, args.port, keepalive=60)
-    client.loop_start()
-    client.publish(f"{topic}/status", "online", qos=qos, retain=True)
+            event_dt = parse_iso_utc(record["event_time"])
+            ingest_dt = parse_iso_utc(ingest_ts)
+            latency_ms = (ingest_dt - event_dt).total_seconds() * 1000.0
+            record["pipeline_latency_ms"] = round(latency_ms, 3)
 
-    while not stop_flag["stop"] or not event_q.empty():
-        try:
-            record = event_q.get(timeout=0.5)
-        except Empty:
-            continue
+            f.write(json.dumps(record) + "\n")
+            f.flush()
 
-        result = client.publish(topic, json.dumps(record, default=str), qos=qos)
+            metrics["consumed"] += 1
+            metrics["max_queue"] = max(metrics["max_queue"], event_q.qsize())
+            event_q.task_done()
 
-        if result.rc != mqtt.MQTT_ERR_SUCCESS:
-            metrics["errors"] = metrics.get("errors", 0) + 1
-            logger.warning("Publish failed (rc=%d)", result.rc)
-        elif args.verbose:
-            print(f"[MQTT] seq={record.get('seq')} type={record.get('event_type')} → {topic}")
+            if args.consumer_delay > 0.0:
+                time.sleep(args.consumer_delay)
 
-        event_q.task_done()
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="PIR motion event pipeline")
 
-    client.loop_stop()
-    client.publish(f"{topic}/status", "offline", qos=qos, retain=True).wait_for_publish(3.0)
-    client.disconnect()
+    p.add_argument("--device-id", default="urn:dev:team08:pir-01",
+                   help="Logical URI for this sensor device")
+    p.add_argument("--pin", type=int, default=17,
+                   help="BCM GPIO pin number the PIR is wired to")
+    p.add_argument("--sample-interval", type=float, default=0.1,
+                   help="Seconds between PIR reads")
+    p.add_argument("--cooldown", type=float, default=5.0,
+                   help="Minimum seconds between emitted events")
+    p.add_argument("--min-high", type=float, default=0.2,
+                   help="Minimum seconds signal must stay HIGH")
+    p.add_argument("--queue-size", type=int, default=100,
+                   help="Maximum number of records in queue")
+    p.add_argument("--consumer-delay", type=float, default=0.0,
+                   help="Artificial delay (s) per record")
+    p.add_argument("--duration", type=float, default=60.0,
+                   help="Pipeline run duration in seconds")
+    p.add_argument("--out", default="motion_pipeline.jsonl",
+                   help="Path to the JSONL output file")
+    p.add_argument("--verbose", action="store_true",
+                   help="Print periodic status lines")
 
+    return p.parse_args()
 
 def main() -> None:
     args = parse_args()
     event_q: Queue = Queue(maxsize=args.queue_size)
     metrics = {
-        "produced":  0,
-        "published": 0,
-        "dropped":   0,
-        "errors":    0,
+        "produced": 0,
+        "consumed": 0,
+        "dropped": 0,
         "max_queue": 0,
     }
     stop_flag = {"stop": False}
 
     sampler = PirSampler(pin=args.pin)
-    interp  = PirInterpreter(cooldown_s=args.cooldown, min_high_s=args.min_high)
+    interp = PirInterpreter(
+        cooldown_s=args.cooldown,
+        min_high_s=args.min_high,
+    )
 
     producer_t = threading.Thread(
         target=producer_loop,
         args=(event_q, sampler, interp, args, metrics, stop_flag),
         daemon=True,
     )
-    publisher_t = threading.Thread(
-        target=publisher_loop,
-        args=(event_q, args, metrics, stop_flag),  
+    consumer_t = threading.Thread(
+        target=consumer_loop,
+        args=(event_q, args.out, args, metrics, stop_flag),
         daemon=True,
     )
 
     print(f"[main] Starting pipeline device={args.device_id} pin={args.pin} "
-          f"duration={args.duration}s")
+          f"duration={args.duration}s out={args.out}")
 
     producer_t.start()
-    publisher_t.start()
+    consumer_t.start()
 
     start_t = time.time()
     try:
@@ -171,9 +172,10 @@ def main() -> None:
             if args.verbose:
                 print(
                     f"[status] produced={metrics['produced']} "
-                    f"published={metrics['published']} "
+                    f"consumed={metrics['consumed']} "
                     f"dropped={metrics['dropped']} "
-                    f"queue={event_q.qsize()}"
+                    f"queue={event_q.qsize()} "
+                    f"max_queue={metrics['max_queue']}"
                 )
             time.sleep(1.0)
     except KeyboardInterrupt:
@@ -181,12 +183,13 @@ def main() -> None:
     finally:
         stop_flag["stop"] = True
         producer_t.join()
-        publisher_t.join()
+        consumer_t.join()
         sampler.cleanup()
 
     print(
         f"[main] Done. produced={metrics['produced']} "
-        f"published={metrics['published']} dropped={metrics['dropped']}"
+        f"consumed={metrics['consumed']} dropped={metrics['dropped']} "
+        f"max_queue={metrics['max_queue']}"
     )
 
 if __name__ == "__main__":
