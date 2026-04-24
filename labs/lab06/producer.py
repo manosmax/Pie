@@ -165,7 +165,6 @@ def main() -> None:
 
     producer_t.start()
     #publisher_t.start()
-    producer_loop() 
     start_t = time.time()
     try:
         while (time.time() - start_t) < args.duration:
