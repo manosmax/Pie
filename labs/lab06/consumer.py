@@ -2,11 +2,11 @@ import argparse
 import json
 import threading
 import time
-import uuid
 from datetime import datetime, timezone
-from queue import Empty, Full, Queue
-from pirlib import PirInterpreter, PirSampler
+from queue import Empty, Queue
+
 import paho.mqtt.client as mqtt
+
 
 def utc_now_iso() -> str:
     return (
@@ -15,56 +15,60 @@ def utc_now_iso() -> str:
         .replace("+00:00", "Z")
     )
 
-def parse_iso_utc(s: str) -> datetime:
-    return datetime.fromisoformat(s.replace("Z", "+00:00"))
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser()
-
-    p.add_argument("--queue-size", type=int, default=100,
-                   help="Maximum number of records in queue")
-    p.add_argument("--out", default="motion_pipeline.jsonl",
-                   help="Path to the JSONL output file")
-    p.add_argument("--verbose", action="store_true",
-                   help="Print periodic status lines")
-    #new arguments for mqtt 
-    p.add_argument("--port" , default = 1883)
-    p.add_argument("--qos" , default = 1)
-    p.add_argument("--topic" , default = "smartbin/bin-01/pir-01/events ")
-    p.add_argument("--host", default="localhost")
+    p = argparse.ArgumentParser(description="PIR consumer — subscribes to MQTT, writes JSONL")
+    p.add_argument("--out",      default="motion_pipeline.jsonl")
+    p.add_argument("--host",     default="localhost")
+    p.add_argument("--port",     type=int, default=1883)
+    p.add_argument("--qos",      type=int, default=1)
+    p.add_argument("--topic",    default="smartbin/bin-01/pir-01/events")
+    p.add_argument("--duration", type=float, default=600.0,
+                   help="How long to run (seconds); 0 = run until Ctrl-C")
+    p.add_argument("--verbose",  action="store_true")
     return p.parse_args()
 
 
 def subscriber_loop(
     event_q: Queue,
     out_path: str,
-    args,
+    args: argparse.Namespace,
+    metrics: dict,
     stop_flag: dict,
-    consumed: int,
 ) -> None:
     topic, qos = args.topic, args.qos
-    metrics = {"count": 0, "total_latency_ms": 0.0}
+
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            client.subscribe(topic, qos=qos)
+            print(f"[SUB] Connected and subscribed to {topic}")
+        else:
+            print(f"[SUB] Connection failed (rc={rc})")
 
     def on_message(client, userdata, msg):
-        record = json.loads(msg.payload)
+        try:
+            record = json.loads(msg.payload)
+        except json.JSONDecodeError:
+            print("[SUB] Received invalid JSON — skipping")
+            return
+
         now = datetime.now(timezone.utc)
-        record["ingest_time"] = now.isoformat()
-        delta = (now - datetime.fromisoformat(record["event_time"])).total_seconds() * 1000
-        record["pipeline_latency_ms"] = round(delta, 2)
-        metrics["total_latency_ms"] += delta
+        record["ingest_time"] = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
-        #put  
-        event_q.put(record)            
+        try:
+            event_dt = datetime.fromisoformat(record["event_time"].replace("Z", "+00:00"))
+            latency_ms = (now - event_dt).total_seconds() * 1000.0
+            record["pipeline_latency_ms"] = round(latency_ms, 3)
+        except (KeyError, ValueError):
+            record["pipeline_latency_ms"] = None
 
-    def on_connect(client, *_):
-        client.subscribe(topic, qos=qos)   
+        event_q.put(record)  # unbounded queue — won't block
 
     client = mqtt.Client()
-
-    client.on_connect = on_connect    
+    client.on_connect = on_connect
     client.on_message = on_message
     client.connect(args.host, args.port, keepalive=60)
-    client.loop_start()                            
+    client.loop_start()
 
     with open(out_path, "a", encoding="utf-8") as f:
         while not stop_flag["stop"] or not event_q.empty():
@@ -77,29 +81,50 @@ def subscriber_loop(
             f.flush()
             event_q.task_done()
 
-            consumed += 1
-            metrics["count"] += 1
+            metrics["consumed"] += 1
+            metrics["total_latency_ms"] += record.get("pipeline_latency_ms") or 0.0
+            avg_lat = metrics["total_latency_ms"] / metrics["consumed"]
 
-            avg_lat = metrics["total_latency_ms"] / metrics["count"]
-            print(f"[SUB] #{consumed} seq={record.get('seq')} "
-                  f"latency={record.get('pipeline_latency_ms', 'N/A')}ms avg={avg_lat:.1f}ms")
+            if args.verbose:
+                print(
+                    f"[SUB] #{metrics['consumed']} seq={record.get('seq')} "
+                    f"latency={record.get('pipeline_latency_ms', 'N/A')}ms "
+                    f"avg={avg_lat:.1f}ms"
+                )
 
     client.loop_stop()
     client.disconnect()
 
 
-
-
-
 def main() -> None:
     args = parse_args()
 
-    event_q   = Queue()
+    event_q: Queue = Queue()
+    metrics = {"consumed": 0, "total_latency_ms": 0.0}
     stop_flag = {"stop": False}
-    metrics   = {}
-    consumed  = 0
 
-    subscriber_loop(event_q, args.out, args, stop_flag, consumed)
+    worker_t = threading.Thread(
+        target=subscriber_loop,
+        args=(event_q, args.out, args, metrics, stop_flag),
+        daemon=True,
+    )
+
+    print(f"[consumer] Starting — topic={args.topic} out={args.out}")
+    worker_t.start()
+
+    start_t = time.time()
+    try:
+        while True:
+            if args.duration > 0 and (time.time() - start_t) >= args.duration:
+                break
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        print("\n[consumer] Ctrl-C — stopping...")
+    finally:
+        stop_flag["stop"] = True
+        worker_t.join()
+
+    print(f"[consumer] Done. consumed={metrics['consumed']}")
 
 
 if __name__ == "__main__":

@@ -13,6 +13,16 @@
 ### Install dependencies
 
 ```bash
+# create
+python3 -m venv .venv --system-site-packages
+
+# activate — Linux / macOS
+source .venv/bin/activate
+
+# activate — Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+```
+```bash
 cd labs/lab06
 pip install -r requirements.txt
 ```
