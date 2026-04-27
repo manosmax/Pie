@@ -118,6 +118,7 @@ python src/consumer.py --out data/motion_events.jsonl --verbose
 An MQTT broker allows for asynchronous communication between the producers and the consumers, adding important feautures such as persistence,routing and protocol conversion. Lastly, it makes infromation easily reusable by other applications that demand it. Wihout a broker the communication between parts of the system could only be synchronous and limited. 
 
 **RQ2: What topic structure did you choose and why? How does it support future extensibility (more sensors, more bins)?**
+We chose the `smartbin/bin-01/pir-01/events` as we felt it clearly explained what type of data is stored and allows us good naming flexibility for future extensibility, for example `smartbin/bin-02/pir-01/events` or `smartbin/bin-01/pir-02/events`.
 
 **RQ3: Explain the difference between QoS 0, 1, and 2 in your own words. Which did you use for your motion events and why?**
 
