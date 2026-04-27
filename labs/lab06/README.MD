@@ -1,7 +1,7 @@
 ## Project Structure
 
 ```
-Pie/labs/lab06
+pie/labs/lab06
 ├── src/
 │   ├── producer.py        # Reads PIR sensor, publishes events to MQTT
 │   ├── consumer.py        # Subscribes to MQTT, writes events to JSONL
