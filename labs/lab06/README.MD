@@ -10,6 +10,7 @@ Pie/labs/lab06
 ├── docker-compose.yml
 ├── mosquitto.conf
 └── requirements.txt
+```
 
 ---
 
