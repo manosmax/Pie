@@ -1,28 +1,23 @@
-
-
 try:
-    import RPi.GPIO as GPIO
+    import lgpio
+    _handle = lgpio.gpiochip_open(0)
     _GPIO_AVAILABLE = True
-except ImportError:
+except Exception:
+    _handle = None
     _GPIO_AVAILABLE = False
 
-
 class PirSampler:
-
     def __init__(self, pin: int):
         self.pin = pin
         self._stub = not _GPIO_AVAILABLE
-
         if not self._stub:
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(self.pin, GPIO.IN)
+            lgpio.gpio_claim_input(_handle, self.pin)
 
     def read(self) -> bool:
         if self._stub:
-            # Stub always returns False; replace with simulation logic if needed
             return False
-        return bool(GPIO.input(self.pin))
+        return bool(lgpio.gpio_read(_handle, self.pin))
 
     def cleanup(self):
         if not self._stub:
-            GPIO.cleanup()
+            lgpio.gpiochip_close(_handle)

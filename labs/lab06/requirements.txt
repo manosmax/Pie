@@ -1,5 +1,2 @@
-gpiozero>=2.0.1
-lgpio 
-rpi-lgpio
 paho-mqtt
-
+lgpio

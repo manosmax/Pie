@@ -43,7 +43,7 @@ JSONLD_CONTEXT = {
     "sosa": "http://www.w3.org/ns/sosa/",
     "ssn": "http://www.w3.org/ns/ssn/",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
-    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/Ontology#",
+    "pipeline": "https://github.com/manosmax/Smart-Waste-Bin/blob/main/docs/Ontology#",
     "event_time":           {"@id": "sosa:resultTime",        "@type": "xsd:dateTime"},
     "ingest_time":          {"@id": "pipeline:ingestTime",    "@type": "xsd:dateTime"},
     "device_id":            {"@id": "sosa:madeBySensor",      "@type": "@id"},
@@ -128,7 +128,6 @@ def publisher_loop(
 
         event_q.task_done()
 
-    # Publish offline *before* stopping the loop so it actually goes out
     client.publish(f"{topic}/status", "offline", qos=qos, retain=True).wait_for_publish(3.0)
     client.loop_stop()
     client.disconnect()
@@ -145,11 +144,13 @@ def main() -> None:
     sampler = PirSampler(pin=args.pin)
     interp = PirInterpreter(cooldown_s=args.cooldown, min_high_s=args.min_high)
 
+    # producer reads from the raw data and creates an event on the queue 
     producer_t = threading.Thread(
         target=producer_loop,
         args=(event_q, sampler, interp, args, metrics, stop_flag),
         daemon=True,
     )
+    #publishes on the mqtt broker on the specified port 
     publisher_t = threading.Thread(
         target=publisher_loop,
         args=(event_q, args, metrics, stop_flag),
@@ -161,6 +162,9 @@ def main() -> None:
     publisher_t.start()
 
     start_t = time.time()
+
+
+    #information for events 
     try:
         while (time.time() - start_t) < args.duration:
             if args.verbose:
@@ -170,7 +174,7 @@ def main() -> None:
                     f"dropped={metrics['dropped']} "
                     f"queue={event_q.qsize()}"
                 )
-            time.sleep(1.0)
+            time.sleep(2.0)
     except KeyboardInterrupt:
         print("\n[producer] Ctrl-C — stopping...")
     finally:

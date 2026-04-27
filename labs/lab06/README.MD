@@ -1,234 +1,92 @@
-# Lab 06 — Messaging via MQTT
+## Project Structure
 
-## How to Run
+```
+Smart-Waste-Bin/
+├── src/
+│   ├── producer.py       # Reads PIR sensor, publishes events to MQTT
+│   ├── consumer.py       # Subscribes to MQTT, writes events to JSONL
+│   └── pirlib/           # PIR sensor driver (sampler + interpreter)
+├── docs/                 # Ontology and JSON-LD models
+├── models/               # context.jsonld, sensor.jsonld, wastebin.jsonld
+├── Dockerfile
+├── docker-compose.yml
+├── mosquitto.conf
+└── requirements.txt
+```
 
-### Hardware wiring
+---
 
-| Sensor pin | Pi physical pin | Pi BCM name | Purpose |
-|---|---|---|---|
-| `VCC` | 2 | 5 V | Power |
-| `GND` | 6 | GND | Reference |
-| `OUT` | 11 | GPIO 17 | Signal input |
+## Wiring *(Raspberry Pi)*
 
-### Install dependencies
+| Sensor Pin | Pi Physical Pin | BCM Name |
+|------------|-----------------|----------|
+| `VCC`      | 2               | 5V       |
+| `GND`      | 6               | GND      |
+| `OUT`      | 11              | GPIO17   |
+
+---
+
+## Build 
+```bash 
+docker compose build
+``` 
+
+## Run with Docker
+```bash
+# Terminal 1 — MQTT broker
+docker compose up mosquitto
+
+# Terminal 2 — PIR producer
+docker compose up producer
+
+# Terminal 3 — MQTT consumer
+docker compose up consumer
+```
+
+Events are saved to `data/motion_events.jsonl`.
+
+``` Bash 
+# In order to view the jsonl output with a preetier format run : 
+while IFS= read -r line; do echo "$line" | python -m json.tool; echo "---"; done < data/motion_events.jsonl
+``` 
+
+
+To pass custom arguments, override the command in `docker-compose.yml`:
+
+```yaml
+producer:
+  command: python -u producer.py --verbose --pin 17 --cooldown 2.0 --min-high 0.1
+consumer:
+  command: python -u consumer.py --verbose --out /app/data/motion_events.jsonl
+```
+
+Or run directly without Docker:
 
 ```bash
-# create
-python3 -m venv .venv --system-site-packages
-
-# activate — Linux / macOS
+python -m venv .venv --system-site-packages
 source .venv/bin/activate
-
-# activate — Windows (PowerShell)
-.venv\Scripts\Activate.ps1
-```
-```bash
-cd labs/lab06
 pip install -r requirements.txt
+
+systemctl start mosquitto 
+
+python src/producer.py --pin 17 --cooldown 2.0 --min-high 0.1 --verbose
+python src/consumer.py --out data/motion_events.jsonl --verbose
 ```
 
-### Start the broker
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--pin` | `17` | GPIO BCM pin number |
+| `--cooldown` | `5.0` | Seconds between events |
+| `--min-high` | `0.2` | Seconds signal must stay HIGH |
+| `--duration` | `600.0` | How long to run (seconds) |
+| `--host` | `localhost` | MQTT broker host |
+| `--port` | `1883` | MQTT broker port |
+| `--topic` | `smartbin/bin-01/pir-01/events` | MQTT topic |
+| `--qos` | `1` | MQTT QoS level |
+| `--out` | `motion_pipeline.jsonl` | Output file (consumer only) |
+| `--verbose` | `false` | Print live status |
 
-```bash
-sudo systemctl start mosquitto
-sudo systemctl enable mosquitto   # auto-start on boot
-```
 
-Confirm it is running:
-
-```bash
-systemctl status mosquitto
-```
-
-You should see `Active: active (running)` on port `1883`.
-
-### Run the consumer
-
-Start the consumer first so it is subscribed before events arrive:
-
-```bash
-python consumer.py \
-  --broker localhost \
-  --port 1883 \
-  --topic "smartbin/bin-01/pir-01/events" \
-  --qos 1 \
-  --out output/events.jsonl \
-  --verbose
-```
-
-### Run the producer
-
-In a second terminal:
-
-```bash
-python producer.py \
-  --broker localhost \
-  --port 1883 \
-  --topic smartbin/bin-01/pir-01/events \
-  --device-id pir-01 \
-  --pin 17 \
-  --sample-interval 0.1 \
-  --cooldown 5.0 \
-  --min-high 0.2 \
-  --qos 1 \
-  --verbose
-```
-
-### Parameter reference
-
-**producer.py**
-
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `--broker` | str | `localhost` | Hostname or IP of the MQTT broker |
-| `--port` | int | `1883` | Broker port |
-| `--topic` | str | — | MQTT topic to publish events to |
-| `--device-id` | str | `pir-01` | Logical sensor name embedded in every record |
-| `--pin` | int | `17` | BCM GPIO pin number |
-| `--sample-interval` | float | `0.1` | Seconds between reads (0.1 s = 10 Hz) |
-| `--cooldown` | float | `5.0` | Min seconds between emitted events |
-| `--min-high` | float | `0.2` | Min seconds signal must stay HIGH before emitting |
-| `--qos` | int | `1` | MQTT QoS level (0, 1, or 2) |
-| `--verbose` / `-v` | flag | off | Print publish status to stdout |
-
-**consumer.py**
-
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `--broker` | str | `localhost` | Hostname or IP of the MQTT broker |
-| `--port` | int | `1883` | Broker port |
-| `--topic` | str | — | MQTT topic to subscribe to (wildcards supported) |
-| `--qos` | int | `1` | MQTT QoS level (0, 1, or 2) |
-| `--out` | str | `motion_events.jsonl` | Output file path (append mode) |
-| `--verbose` / `-v` | flag | off | Print received events and metrics to stdout |
-
----
-
-## Pipeline Output Format
-
-A pipeline event as written by the consumer:
-
-```json
-{
-  "@context": {
-    "@vocab": "https://schema.org/",
-    "sosa": "http://www.w3.org/ns/sosa/",
-    "ssn": "http://www.w3.org/ns/ssn/",
-    "xsd": "http://www.w3.org/2001/XMLSchema#",
-    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/Ontology#",
-    "event_time": {
-      "@id": "sosa:resultTime",
-      "@type": "xsd:dateTime"
-    },
-    "ingest_time": {
-      "@id": "pipeline:ingestTime",
-      "@type": "xsd:dateTime"
-    },
-    "device_id": {
-      "@id": "sosa:madeBySensor",
-      "@type": "@id"
-    },
-    "mounted_on": {
-      "@id": "sosa:isHostedBy",
-      "@type": "@id"
-    },
-    "event_type": {
-      "@id": "sosa:observedProperty",
-      "@type": "@id"
-    },
-    "motion_state": {
-      "@id": "sosa:hasSimpleResult",
-      "@type": "xsd:string"
-    },
-    "seq": {
-      "@id": "pipeline:sequenceNumber",
-      "@type": "xsd:integer"
-    },
-    "run_id": {
-      "@id": "pipeline:runId",
-      "@type": "xsd:string"
-    },
-    "pipeline_latency_ms": {
-      "@id": "pipeline:latencyMs",
-      "@type": "xsd:decimal"
-    }
-  },
-  "@id": "urn:event:383f7d25-1535-4e05-b8da-90d02daf3601:1",
-  "@type": "sosa:Observation",
-  "event_time": "2026-04-06T15:23:05.131Z",
-  "device_id": "urn:dev:team08:pir-01",
-  "event_type": "urn:prop:team08:motion",
-  "motion_state": "detected",
-  "seq": 1,
-  "run_id": "383f7d25-1535-4e05-b8da-90d02daf3601",
-  "mounted_on": "urn:wastebin:bin-01",
-  "ingest_time": "2026-04-06T15:23:05.148Z",
-  "pipeline_latency_ms": 17.3
-}
-```
-
----
-
-## Repository Structure
-
-```
-/
-├── labs/
-│   └── lab06/
-│       ├── README.md                ← This file
-│       ├── requirements.txt
-│       ├── producer.py              ← Reads PIR sensor, publishes to MQTT
-│       ├── consumer.py              ← Subscribes to MQTT, enriches, writes JSONL
-│       └── pirlib/
-│           ├── __init__.py
-│           ├── sampler.py
-│           └── interpreter.py
-```
-
----
-
-## Overview
-
-This lab decouples the producer and consumer from Lab 05 using the **pub/sub pattern**. Instead of two threads sharing a Python `Queue` in the same process, the producer and consumer are now independent scripts that communicate through a **Mosquitto MQTT broker**.
-
-The producer publishes motion events to a topic. The consumer subscribes to that topic and receives them via a callback. The broker sits in between — neither side knows about the other, and they do not need to be running at the same time.
-
-**MQTT concepts used:**
-
-| Concept | What it does |
-|---|---|
-| **Topic hierarchy** | `/`-separated paths that organise messages (e.g. `smartbin/bin-01/pir-01/events`) |
-| **Wildcards** | `+` matches one level; `#` matches any number of levels |
-| **QoS 0** | At most once — fire and forget, no acknowledgement |
-| **QoS 1** | At least once — acknowledged, may duplicate |
-| **QoS 2** | Exactly once — four-step handshake, highest overhead |
-| **Retained messages** | Broker stores the last message on a topic; new subscribers receive it immediately |
-
----
-
-## Topic Structure
-
-```
-smartbin/
-└── bin-01/
-    └── pir-01/
-        ├── events      ← motion event records (JSON payload)
-        └── status      ← retained online / offline heartbeat
-```
-
-**Subscription patterns supported:**
-
-| Pattern | Receives |
-|---|---|
-| `smartbin/bin-01/pir-01/events` | Events from this sensor only |
-| `smartbin/bin-01/#` | All messages from this bin (events + status) |
-| `smartbin/+/pir-01/events` | Motion events from pir-01 across all bins |
-| `smartbin/#` | Everything — all bins, all sensors, all topics |
-
-**Design rationale:**
-The four-level hierarchy `smartbin / bin / sensor / message-type` supports both narrow subscriptions (a single sensor's events) and broad ones (all sensors on a bin, or the same sensor type across all bins) using standard MQTT wildcards. The `status` subtopic is published with the retain flag so any new subscriber learns the sensor's current state without waiting for the next update.
-
----
 
 ## System Architecture
 

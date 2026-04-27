@@ -57,19 +57,21 @@ def subscriber_loop(
 
         try:
             event_dt = datetime.fromisoformat(record["event_time"].replace("Z", "+00:00"))
-            latency_ms = (now - event_dt).total_seconds() * 1000.0
+            latency_ms = (now - event_dt).total_seconds() * 1000.0 # difference of event creation and consumption
             record["pipeline_latency_ms"] = round(latency_ms, 3)
         except (KeyError, ValueError):
             record["pipeline_latency_ms"] = None
 
-        event_q.put(record)  # unbounded queue — won't block
+        event_q.put(record)  
 
+    #configure mqtt client 
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(args.host, args.port, keepalive=60)
     client.loop_start()
 
+    # write to output 
     with open(out_path, "a", encoding="utf-8") as f:
         while not stop_flag["stop"] or not event_q.empty():
             try:
@@ -103,14 +105,14 @@ def main() -> None:
     metrics = {"consumed": 0, "total_latency_ms": 0.0}
     stop_flag = {"stop": False}
 
-    worker_t = threading.Thread(
+    consumer_thread = threading.Thread(
         target=subscriber_loop,
         args=(event_q, args.out, args, metrics, stop_flag),
         daemon=True,
     )
 
     print(f"[consumer] Starting — topic={args.topic} out={args.out}")
-    worker_t.start()
+    consumer_thread.start()
 
     start_t = time.time()
     try:
@@ -122,7 +124,7 @@ def main() -> None:
         print("\n[consumer] Ctrl-C — stopping...")
     finally:
         stop_flag["stop"] = True
-        worker_t.join()
+        consumer_thread.join()
 
     print(f"[consumer] Done. consumed={metrics['consumed']}")
 
