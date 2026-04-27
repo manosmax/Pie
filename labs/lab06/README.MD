@@ -3,14 +3,13 @@
 ```
 Pie/labs/lab06
 ├── src/
-│   ├── producer.py       # Reads PIR sensor, publishes events to MQTT
-│   ├── consumer.py       # Subscribes to MQTT, writes events to JSONL
-└──  └── pirlib/           # PIR sensor driver (sampler + interpreter)
+│   ├── producer.py        # Reads PIR sensor, publishes events to MQTT
+│   ├── consumer.py        # Subscribes to MQTT, writes events to JSONL
+│   └── pirlib/            # PIR sensor driver (sampler + interpreter)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── mosquitto.conf
 └── requirements.txt
-```
 
 ---
 
@@ -156,6 +155,8 @@ In the threaded version if the queue was full the event was stored for a short p
 The callback pattern is an interrupt event for when a message arrives and is defined in `on_message` function.
 
 **RQ11: Show one example JSON record from the MQTT-based consumer. Is the structure the same as in previous labs? What about pipeline_latency_ms, is it higher or lower? Why?**
+
+Our records include an event with the name of the bin and the sensor, that triggered it, as well as the latency of the pipeline and an event timestamp.The latency is higher than it used to be because now the producer and consumer are running independently and they have been decoupled.
 
 # Decoupling experiments
 
