@@ -1,13 +1,11 @@
 ## Project Structure
 
 ```
-Smart-Waste-Bin/
+Pie/labs/lab06
 ├── src/
 │   ├── producer.py       # Reads PIR sensor, publishes events to MQTT
 │   ├── consumer.py       # Subscribes to MQTT, writes events to JSONL
 │   └── pirlib/           # PIR sensor driver (sampler + interpreter)
-├── docs/                 # Ontology and JSON-LD models
-├── models/               # context.jsonld, sensor.jsonld, wastebin.jsonld
 ├── Dockerfile
 ├── docker-compose.yml
 ├── mosquitto.conf
