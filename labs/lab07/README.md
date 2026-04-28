@@ -2,20 +2,34 @@
 
 **RQ1: What is Home Assistant and what problem does it solve? Why use it instead of building a custom dashboard?**
 
+Home Assistant is an open-source home automation platform that allows the developers of a project to easily make an informational dashboard for non-technical people to view, or for people who dont have access to the logs. It includes, device management,dashboards,automations and history. We chose to use Home Assistant as an easier and quicker alternative instead of building it from scratch. Using this free tool we just need to connecting to our existing pipeline.  
+
 **RQ2: What is the difference between the “Home Assistant OS” and “Home Assistant Container” installation methods? Why did we use the Container method?**
 
+Home Assistant OS is a whole operating system instead of Home Assistant Container which is an installation method that gives us the Home Assistant Core. We chose this method to avoid replacing our Pi operating system.
+
 **RQ3: What is an entity in Home Assistant? Give three examples of entities in your setup and their current states.**
+
+An entity is used by Home Assistant as a way to organize anything that has a state. For example in our setup, the sensor is an entity, that can be either `on (motion detected)` or `clear`. Also our bin is an entity and its capacity has a state `(0% full)`.
 
 
 # MQTT integration
 
 **RQ4: How does Home Assistant learn about your sensors? Explain the MQTT discovery mechanism, what topic do you publish to, and what does the payload contain?**
 
+Home Assistant supports MQTT Discovery. This means that sensors can announce themselves with a special configuration message instead of being manually configures in YAML files.
+
 **RQ5: Why should discovery messages be published with the retain flag (-r)?**
+
+Discovery messages should be retained so the Home Assistant can pick it up even if it restarts after the message was published.
 
 **RQ6: What is the device block in a discovery message? What happens in the Home Assistant UI when multiple entities share the same device.identifiers?**
 
+The Device block is important as it informs Home Assistant that this entity is a physical device. If multiple entities share the same device.identifiers they will appear grouped together under the device name in the UI. 
+
 **RQ7: What is the difference between a state_topic and a json_attributes_topic? When would you use each?**
+
+
 
 # Entity design
 
