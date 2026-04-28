@@ -95,6 +95,39 @@ def producer_loop(
         time.sleep(args.sample_interval)
 
 
+DISCOVERY_TOPIC = "homeassistant/binary_sensor/pir_01_motion/config"
+
+DISCOVERY_PAYLOAD = {
+    "name": "PIR Motion Sensor",
+    "state_topic": "smartbin/bin-01/pir-01/events",
+    "value_template": "{{ value_json.motion_state }}",
+    "payload_on": "detected",
+    "payload_off": "clear",
+    "device_class": "motion",
+    "unique_id": "pir_01_motion",
+    "device": {
+        "identifiers": ["pir-01"],
+        "name": "PIR Sensor 01",
+        "model": "HC-SR501",
+        "manufacturer": "Generic",
+    },
+}
+
+
+def publish_discovery(client: mqtt.Client, qos: int) -> None:
+    """Announce this sensor to Home Assistant via MQTT Discovery."""
+    result = client.publish(
+        DISCOVERY_TOPIC,
+        json.dumps(DISCOVERY_PAYLOAD),
+        qos=qos,
+        retain=True,
+    )
+    if result.rc == mqtt.MQTT_ERR_SUCCESS:
+        logger.info("HA discovery config published → %s", DISCOVERY_TOPIC)
+    else:
+        logger.warning("HA discovery publish failed (rc=%d)", result.rc)
+
+
 def publisher_loop(
     event_q: Queue,
     args: argparse.Namespace,
@@ -111,6 +144,7 @@ def publisher_loop(
 
     client.connect(args.host, args.port, keepalive=60)
     client.loop_start()
+    publish_discovery(client, qos)
     client.publish(f"{topic}/status", "online", qos=qos, retain=True)
 
     while not stop_flag["stop"] or not event_q.empty():
