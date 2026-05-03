@@ -137,36 +137,73 @@ The counter helper stores an integer state. You can call `counter.increment`, `c
 **RQ13: Paste the YAML of your "Count motion events" automation. Explain each part (trigger, condition, action).**
 
 ```yaml
-alias: Count motion events
-trigger:
-  - platform: state
-    entity_id: binary_sensor.pir_motion_sensor
-    to: "on"           # fires when motion is detected
-condition: []          # no condition — always runs
-action:
-  - service: counter.increment
+- id: '1777822156221'
+  alias: Count motion events
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.smart_waste_bin_bin_01_waste_bin_bin_01_motion
+    to:
+    - 'on'
+  conditions: []
+  actions:
+  - action: counter.increment
+    metadata: {}
     target:
-      entity_id: counter.motion_events
+      entity_id: counter.wastebin_motion_count
+    data: {}
+  mode: single
 ```
+Trigger: fires when the motion sensor changes to on (motion detected). Condition: none, always runs. 
+Action: increments the wastebin_motion_count counter helper by 1.
 
 **RQ14: What other automation(s) did you create? Paste the YAML and explain the trigger, condition (if any), and action.**
 
 ```yaml
-alias: Notify bin full
-trigger:
-  - platform: numeric_state
-    entity_id: sensor.bin_fill_level
-    above: 90
-condition: []
-action:
-  - service: notify.persistent_notification
+- id: '1777818364444'
+  alias: 'Motion Alert '
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.smart_waste_bin_bin_01_waste_bin_bin_01_motion
+  conditions: []
+  actions:
+  - action: persistent_notification.create
+    metadata: {}
     data:
-      message: "Bin 01 is over 90% full — empty it soon."
+      message: Motion detected at Smart Wastebin 01 — {{ now().strftime('%H:%M:%S')
+        }}
+      title: Wastebin Alert
+  mode: single
+- id: '1777818928636'
+  alias: 'Alert of overfill '
+  description: ''
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.smart_waste_bin_bin_01_waste_bin_bin_01_items
+    above: 50
+  conditions: []
+  actions:
+  - action: persistent_notification.create
+    metadata: {}
+    data:
+      message: '[ALERT] Number of objects inside bin is above 50 ! '
+      title: OVERFILL
+  mode: single
+
 ```
+Motion Alert: trigger fires on any state change of the motion sensor, no condition, action creates a persistent notification.
+
+Alert of overfill: trigger fires when the item counter exceeds 50, no condition, action creates a persistent notification warning the bin is overfull.
 
 **RQ15: Give one example of an automation that would be useful in a real Smart Wastebin deployment that involves a condition (not just trigger → action). Describe the trigger, the condition, and the action.**
 
-Trigger: bin fill level goes above 80%. Condition: current time is between 08:00–20:00 (working hours). Action: send a notification to the cleaning team. This avoids sending alerts overnight when no one can act on them.
+Trigger: bin fill level goes above 80%. 
+Condition: current time is between 08:00–20:00 (working hours). 
+Action: send a notification to the cleaning team.
 
 ---
 
@@ -178,7 +215,7 @@ The consumer expects full JSON payloads for processing, while Home Assistant exp
 
 **RQ17: Show a screenshot of your Home Assistant dashboard with your wastebin entities visible.**
 
-*(screenshot here)*
+![alt text](image.png)
 
 **RQ18: What happens in Home Assistant when the producer is stopped? Does the motion sensor show "unavailable", "clear", or something else? How could you improve this?**
 
