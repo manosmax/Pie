@@ -1,0 +1,108 @@
+{
+  "@context": {
+    "@vocab":     "https://schema.org/",
+    "sosa":       "http://www.w3.org/ns/sosa/",
+    "ssn":        "http://www.w3.org/ns/ssn/",
+    "ssn-system": "http://www.w3.org/ns/ssn/systems/",
+    "xsd":        "http://www.w3.org/2001/XMLSchema#",
+    "pipeline":   "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#"
+  },
+
+  "@id":   "urn:dev:team08:pir-01",
+  "@type": "sosa:Sensor",
+
+  "name":        "HC-SR501 PIR Motion Sensor — Bin 08",
+  "description": "HC-SR501 passive infrared motion sensor. Detects motion by sensing differential changes in infrared radiation.",
+  "model":       "HC-SR501",
+
+  "sosa:observes": {
+    "@type":       "sosa:ObservableProperty",
+    "@id":         "urn:prop:team08:motion",
+    "name":        "Motiion",
+    "description": "Instantaneous motion (temperature > ambient) within the sensor field of view. This is a discrete event property. The sensor output goes HIGH when motion is detected and LOW when it ceases."
+  },
+
+  "ssn:hasProperty": [
+    {
+      "@type":              "ssn-system:MeasurementRange",
+      "name":               "Detection Range",
+      "description":        "Adjustable via onboard potentiometer. Configured at maximum (~7 m) for this deployment.",
+      "pipeline:minValueM": { "@value": "0.5", "@type": "xsd:float" },
+      "pipeline:maxValueM": { "@value": "7.0", "@type": "xsd:float" }
+    },
+    {
+      "@type":                      "ssn:Property",
+      "name":                       "Detection Angle",
+      "pipeline:detectionAngleDeg": { "@value": "120", "@type": "xsd:integer" }
+    },
+    {
+      "@type":                "ssn-system:SystemCapability",
+      "name":                 "Supply Voltage Range",
+      "description":          "Fed from the Raspberry Pi 5 V rail (physical pin 2).",
+      "pipeline:minVoltageV": { "@value": "4.5",  "@type": "xsd:float" },
+      "pipeline:maxVoltageV": { "@value": "20.0", "@type": "xsd:float" }
+    },
+    {
+      "@type":                   "ssn-system:SystemCapability",
+      "name":                    "Output Signal Voltage HIGH",
+      "description":             "Compatible with Raspberry Pi GPIO 3.3 V logic.",
+      "pipeline:outputVoltageV": { "@value": "3.3", "@type": "xsd:float" }
+    }
+  ],
+
+  "pipeline:gpioPin": {
+    "@type":       "ssn:Property",
+    "name":        "GPIO Pin",
+    "description": "BCM GPIO 17, physical header pin 11 on the Raspberry Pi.",
+    "schema:value": { "@value": "17", "@type": "xsd:integer" }
+  },
+  "pipeline:physicalPin": {
+    "@type":       "ssn:Property",
+    "name":        "Physical Pin",
+    "schema:value": { "@value": "11", "@type": "xsd:integer" }
+  },
+  "pipeline:sampleIntervalS": {
+    "@type":       "ssn:Property",
+    "name":        "Sample Interval",
+    "description": "Producer loop polls the GPIO pin every 0.1 s (10 Hz).",
+    "schema:value": { "@value": "0.1", "@type": "xsd:float" }
+  },
+  "pipeline:cooldownS": {
+    "@type":       "ssn:Property",
+    "name":        "Cooldown",
+    "description": "Minimum seconds between emitted events. Implemented in PirInterpreter. Prevents a single sustained motion from flooding the queue.",
+    "schema:value": { "@value": "5.0", "@type": "xsd:float" }
+  },
+  "pipeline:minHighS": {
+    "@type":       "ssn:Property",
+    "name":        "Minimum HIGH Duration",
+    "description": "Minimum seconds the GPIO signal must remain HIGH before an event is emitted. Filters electrical noise and sub-threshold disturbances.",
+    "schema:value": { "@value": "0.2", "@type": "xsd:float" }
+  },
+  "pipeline:operatingMode": {
+    "@type":       "ssn:Property",
+    "name":        "Operating Mode",
+    "description": "HC-SR501 jumper set to H (repeat trigger). The output stays HIGH for the duration of motion rather than producing a single pulse.",
+    "schema:value": { "@value": "repeat-trigger", "@type": "xsd:string" }
+  },
+  "pipeline:sensingPrinciple": {
+    "@value": "Passive infrared — detects differential changes in infrared radiation across two pyroelectric sensing elements. Does not emit radiation.",
+    "@type":  "xsd:string"
+  },
+  "pipeline:indoorOutdoor": {
+    "@value": "indoor",
+    "@type":  "xsd:string"
+  },
+
+  "sosa:isHostedBy":    "urn:wastebin:team08:bin-01",
+  "pipeline:deployedIn": "urn:env:team08:kypes",
+
+  "pipeline:status": {
+    "@value": "active",
+    "@type":  "xsd:string"
+  },
+  "pipeline:installedOn": {
+    "@value": "2026-04-01",
+    "@type":  "xsd:date"
+  }
+}

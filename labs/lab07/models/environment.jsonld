@@ -1,0 +1,35 @@
+{
+  "@context": {
+    "@vocab":   "https://schema.org/",
+    "bot":      "https://w3id.org/bot#",
+    "sosa":     "http://www.w3.org/ns/sosa/",
+    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#",
+    "xsd":      "http://www.w3.org/2001/XMLSchema#"
+  },
+
+  "@id":   "urn:env:kypes",
+  "@type": "bot:Space",
+
+  "name":        "Kypes Lab",
+  "description": "Indoor laboratory space where bin-01 is deployed.",
+
+  "pipeline:spatialHierarchy": {
+    "campus":   "University Campus",
+    "building": "basiko",
+    "floor":    "0",
+    "room":     "Kypes Lab"
+  },
+
+  "pipeline:roomNumber":   "02",
+  "pipeline:indoorOutdoor": "indoor",
+
+  "pipeline:trafficLevel":    "high",
+
+  "pipeline:contains": [
+    "urn:wastebin:bin-01"
+  ],
+
+  "pipeline:hostsSensors": [
+    "urn:dev:pir-01"
+  ]
+}

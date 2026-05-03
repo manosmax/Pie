@@ -12,11 +12,9 @@ from pirlib import PirInterpreter, PirSampler
 
 logger = logging.getLogger(__name__)
 
-# --- UPDATED: Dual HA Discovery Helper ---
 def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic):
     """Sends the MQTT Discovery JSON to Home Assistant for BOTH sensors."""
     
-    # Shared device passport - this groups the sensors together!
     device_info = {
         "identifiers": [bin_id],
         "name": f"Smart Waste Bin {bin_id}",
@@ -24,7 +22,6 @@ def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic):
         "manufacturer": "Team 08"
     }
 
-    # 1. Motion Sensor (Binary)
     pir_config = {
         "name": f"Waste Bin {bin_id} Motion",
         "state_topic": pir_topic,
@@ -32,21 +29,19 @@ def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic):
         "payload_off": "clear",
         "device_class": "motion",
         "unique_id": f"{bin_id}_{sensor_id}_motion",
-        "off_delay": 30,  # Resets to 'clear' after 30 seconds
+        "off_delay": 6, 
         "device": device_info
     }
     
-    # 2. Item Counter Sensor (Numeric)
     counter_config = {
         "name": f"Waste Bin {bin_id} Items",
         "state_topic": counter_topic,
-        "icon": "mdi:delete-restore",      # Trash can icon in HA
-        "state_class": "measurement",      # Tells HA this is a numeric value
+        "icon": "mdi:delete-restore",      
+        "state_class": "measurement",    
         "unique_id": f"{bin_id}_item_counter",
         "device": device_info
     }
 
-    # Publish both discovery payloads
     client.publish(f"homeassistant/binary_sensor/{bin_id}_{sensor_id}/config", json.dumps(pir_config), qos=1, retain=True)
     client.publish(f"homeassistant/sensor/{bin_id}_counter/config", json.dumps(counter_config), qos=1, retain=True)
     
@@ -126,7 +121,7 @@ def producer_loop(
                 "seq": seq,
                 "run_id": run_id,
                 "mounted_on": f"urn:wastebin:{args.bin_id}",
-                "item_count": item_count  # Pack it in the JSON-LD
+                "item_count": item_count  
             }
             try:
                 event_q.put_nowait(record)
@@ -172,14 +167,10 @@ def publisher_loop(
         except Exception:
             continue
 
-        # 1. Publish full JSON-LD
         result = client.publish(topic, json.dumps(record, default=str), qos=qos)
         
-        # 2. Publish HA Motion State
         client.publish(ha_pir_topic, "detected", qos=qos)
         
-        # 3. Publish HA Counter State
-        # Extract the count we packed in the producer loop
         current_count = record.get("item_count", 0)
         client.publish(ha_counter_topic, str(current_count), qos=qos)
 
