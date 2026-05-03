@@ -2,7 +2,29 @@ anastasis 12345678
 
 # PartA 
 
-#### Run homeasistant 
+---
+
+## Wiring *(Raspberry Pi)*
+
+| Sensor Pin | Pi Physical Pin | BCM Name |
+|------------|-----------------|----------|
+| `VCC`      | 2               | 5V       |
+| `GND`      | 6               | GND      |
+| `OUT`      | 11              | GPIO17   |
+
+---
+
+## Build 
+```bash 
+docker compose build
+``` 
+
+## Run with Docker
+```bash
+# Terminal 1 — MQTT broker
+docker compose up 
+
+# run the homeassistant docker 
 docker run -d \
   --name homeassistant \
   --restart unless-stopped \
@@ -10,6 +32,9 @@ docker run -d \
   -v /run/dbus:/run/dbus:ro \
   --network host \
   ghcr.io/home-assistant/home-assistant:stable
+
+```
+
 
 
 

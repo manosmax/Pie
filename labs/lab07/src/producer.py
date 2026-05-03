@@ -8,10 +8,49 @@ from datetime import datetime, timezone
 from queue import Empty, Full, Queue
 
 import paho.mqtt.client as mqtt
-from pirlib import PirInterpreter, PirSampler
+from labs.lab07.src.pirlib import PirInterpreter, PirSampler
 
 logger = logging.getLogger(__name__)
 
+# --- UPDATED: Dual HA Discovery Helper ---
+def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic):
+    """Sends the MQTT Discovery JSON to Home Assistant for BOTH sensors."""
+    
+    # Shared device passport - this groups the sensors together!
+    device_info = {
+        "identifiers": [bin_id],
+        "name": f"Smart Waste Bin {bin_id}",
+        "model": "IoT-Bin-v2",
+        "manufacturer": "Team 08"
+    }
+
+    # 1. Motion Sensor (Binary)
+    pir_config = {
+        "name": f"Waste Bin {bin_id} Motion",
+        "state_topic": pir_topic,
+        "payload_on": "detected",
+        "payload_off": "clear",
+        "device_class": "motion",
+        "unique_id": f"{bin_id}_{sensor_id}_motion",
+        "off_delay": 30,  # Resets to 'clear' after 30 seconds
+        "device": device_info
+    }
+    
+    # 2. Item Counter Sensor (Numeric)
+    counter_config = {
+        "name": f"Waste Bin {bin_id} Items",
+        "state_topic": counter_topic,
+        "icon": "mdi:delete-restore",      # Trash can icon in HA
+        "state_class": "measurement",      # Tells HA this is a numeric value
+        "unique_id": f"{bin_id}_item_counter",
+        "device": device_info
+    }
+
+    # Publish both discovery payloads
+    client.publish(f"homeassistant/binary_sensor/{bin_id}_{sensor_id}/config", json.dumps(pir_config), qos=1, retain=True)
+    client.publish(f"homeassistant/sensor/{bin_id}_counter/config", json.dumps(counter_config), qos=1, retain=True)
+    
+    print("[HA] Discovery sent for Motion and Counter entities.")
 
 def utc_now_iso() -> str:
     return (
@@ -20,23 +59,23 @@ def utc_now_iso() -> str:
         .replace("+00:00", "Z")
     )
 
-
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="PIR producer — reads sensor, publishes to MQTT")
     p.add_argument("--device-id",       default="urn:dev:team08:pir-01")
+    p.add_argument("--bin-id",          default="bin-01")
+    p.add_argument("--sensor-id",       default="pir-01")
     p.add_argument("--pin",             type=int,   default=17)
     p.add_argument("--sample-interval", type=float, default=0.1)
-    p.add_argument("--cooldown",        type=float, default=5.0)
-    p.add_argument("--min-high",        type=float, default=0.2)
-    p.add_argument("--queue-size",      type=int,   default=100)
-    p.add_argument("--duration",        type=float, default=600.0)
-    p.add_argument("--host",            default="localhost")
-    p.add_argument("--port",            type=int,   default=1883)
-    p.add_argument("--qos",             type=int,   default=1)
-    p.add_argument("--topic",           default="smartbin/bin-01/pir-01/events")
-    p.add_argument("--verbose",         action="store_true")
+    p.add_argument("--cooldown",         type=float, default=5.0)
+    p.add_argument("--min-high",         type=float, default=0.2)
+    p.add_argument("--queue-size",       type=int,   default=100)
+    p.add_argument("--duration",         type=float, default=600.0)
+    p.add_argument("--host",             default="localhost")
+    p.add_argument("--port",             type=int,   default=1883)
+    p.add_argument("--qos",              type=int,   default=1)
+    p.add_argument("--topic",            default="smartbin/bin-01/pir-01/events")
+    p.add_argument("--verbose",          action="store_true")
     return p.parse_args()
-
 
 JSONLD_CONTEXT = {
     "@vocab": "https://schema.org/",
@@ -45,7 +84,7 @@ JSONLD_CONTEXT = {
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "pipeline": "https://github.com/manosmax/Smart-Waste-Bin/blob/main/docs/Ontology#",
     "event_time":           {"@id": "sosa:resultTime",        "@type": "xsd:dateTime"},
-    "ingest_time":          {"@id": "pipeline:ingestTime",    "@type": "xsd:dateTime"},
+    "ingest_time":           {"@id": "pipeline:ingestTime",    "@type": "xsd:dateTime"},
     "device_id":            {"@id": "sosa:madeBySensor",      "@type": "@id"},
     "mounted_on":           {"@id": "sosa:isHostedBy",        "@type": "@id"},
     "event_type":           {"@id": "sosa:observedProperty",  "@type": "@id"},
@@ -53,8 +92,8 @@ JSONLD_CONTEXT = {
     "seq":                  {"@id": "pipeline:sequenceNumber","@type": "xsd:integer"},
     "run_id":               {"@id": "pipeline:runId",         "@type": "xsd:string"},
     "pipeline_latency_ms":  {"@id": "pipeline:latencyMs",     "@type": "xsd:decimal"},
+    "item_count":           {"@id": "pipeline:itemCount",     "@type": "xsd:integer"} # Added to context
 }
-
 
 def producer_loop(
     event_q: Queue,
@@ -66,6 +105,7 @@ def producer_loop(
 ) -> None:
     run_id = str(uuid.uuid4())
     seq = 0
+    item_count = 0  
 
     while not stop_flag["stop"]:
         t = time.monotonic()
@@ -73,6 +113,8 @@ def producer_loop(
 
         for _ in interp.update(raw, t):
             seq += 1
+            item_count += 1
+            
             record = {
                 "@context": JSONLD_CONTEXT,
                 "@id": f"urn:event:{run_id}:{seq}",
@@ -83,7 +125,8 @@ def producer_loop(
                 "motion_state": "detected",
                 "seq": seq,
                 "run_id": run_id,
-                "mounted_on": "urn:wastebin:bin-01",
+                "mounted_on": f"urn:wastebin:{args.bin_id}",
+                "item_count": item_count  # Pack it in the JSON-LD
             }
             try:
                 event_q.put_nowait(record)
@@ -94,40 +137,6 @@ def producer_loop(
 
         time.sleep(args.sample_interval)
 
-
-DISCOVERY_TOPIC = "homeassistant/binary_sensor/pir_01_motion/config"
-
-DISCOVERY_PAYLOAD = {
-    "name": "PIR Motion Sensor",
-    "state_topic": "smartbin/bin-01/pir-01/events",
-    "value_template": "{{ value_json.motion_state }}",
-    "payload_on": "detected",
-    "payload_off": "clear",
-    "device_class": "motion",
-    "unique_id": "pir_01_motion",
-    "device": {
-        "identifiers": ["pir-01"],
-        "name": "PIR Sensor 01",
-        "model": "HC-SR501",
-        "manufacturer": "Generic",
-    },
-}
-
-
-def publish_discovery(client: mqtt.Client, qos: int) -> None:
-    """Announce this sensor to Home Assistant via MQTT Discovery."""
-    result = client.publish(
-        DISCOVERY_TOPIC,
-        json.dumps(DISCOVERY_PAYLOAD),
-        qos=qos,
-        retain=True,
-    )
-    if result.rc == mqtt.MQTT_ERR_SUCCESS:
-        logger.info("HA discovery config published → %s", DISCOVERY_TOPIC)
-    else:
-        logger.warning("HA discovery publish failed (rc=%d)", result.rc)
-
-
 def publisher_loop(
     event_q: Queue,
     args: argparse.Namespace,
@@ -135,8 +144,19 @@ def publisher_loop(
     stop_flag: dict,
 ) -> None:
     topic, qos = args.topic, args.qos
+    ha_pir_topic = f"smartbin/{args.bin_id}/{args.sensor_id}/motion"
+    ha_counter_topic = f"smartbin/{args.bin_id}/counter/state"
 
     client = mqtt.Client()
+
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            print("[PUB] Connected to MQTT Broker")
+            send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_counter_topic)
+        else:
+            print(f"[PUB] Connection failed with code {rc}")
+
+    client.on_connect = on_connect
     client.will_set(f"{topic}/status", "offline", qos=qos, retain=True)
     client.on_publish = lambda *_: metrics.__setitem__(
         "published", metrics["published"] + 1
@@ -144,7 +164,6 @@ def publisher_loop(
 
     client.connect(args.host, args.port, keepalive=60)
     client.loop_start()
-    publish_discovery(client, qos)
     client.publish(f"{topic}/status", "online", qos=qos, retain=True)
 
     while not stop_flag["stop"] or not event_q.empty():
@@ -153,19 +172,28 @@ def publisher_loop(
         except Exception:
             continue
 
+        # 1. Publish full JSON-LD
         result = client.publish(topic, json.dumps(record, default=str), qos=qos)
+        
+        # 2. Publish HA Motion State
+        client.publish(ha_pir_topic, "detected", qos=qos)
+        
+        # 3. Publish HA Counter State
+        # Extract the count we packed in the producer loop
+        current_count = record.get("item_count", 0)
+        client.publish(ha_counter_topic, str(current_count), qos=qos)
+
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             metrics["errors"] += 1
             logger.warning("Publish failed (rc=%d)", result.rc)
         elif args.verbose:
-            print(f"[PUB] seq={record.get('seq')} → {topic}")
+            print(f"[PUB] seq={record.get('seq')} → Motion detected, count is now {current_count}")
 
         event_q.task_done()
 
     client.publish(f"{topic}/status", "offline", qos=qos, retain=True).wait_for_publish(3.0)
     client.loop_stop()
     client.disconnect()
-
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
@@ -178,27 +206,23 @@ def main() -> None:
     sampler = PirSampler(pin=args.pin)
     interp = PirInterpreter(cooldown_s=args.cooldown, min_high_s=args.min_high)
 
-    # producer reads from the raw data and creates an event on the queue 
     producer_t = threading.Thread(
         target=producer_loop,
         args=(event_q, sampler, interp, args, metrics, stop_flag),
         daemon=True,
     )
-    #publishes on the mqtt broker on the specified port 
     publisher_t = threading.Thread(
         target=publisher_loop,
         args=(event_q, args, metrics, stop_flag),
         daemon=True,
     )
 
-    print(f"[producer] Starting — device={args.device_id} pin={args.pin} duration={args.duration}s")
+    print(f"[producer] Starting — bin={args.bin_id} sensor={args.sensor_id} duration={args.duration}s")
     producer_t.start()
     publisher_t.start()
 
     start_t = time.time()
 
-
-    #information for events 
     try:
         while (time.time() - start_t) < args.duration:
             if args.verbose:
@@ -221,7 +245,6 @@ def main() -> None:
         f"[producer] Done. produced={metrics['produced']} "
         f"published={metrics['published']} dropped={metrics['dropped']}"
     )
-
 
 if __name__ == "__main__":
     main()
