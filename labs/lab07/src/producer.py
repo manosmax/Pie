@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from queue import Empty, Full, Queue
 
 import paho.mqtt.client as mqtt
-from labs.lab07.src.pirlib import PirInterpreter, PirSampler
+from pirlib import PirInterpreter, PirSampler
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,24 @@
 anastasis 12345678
 
+
+
+homeassistant/binary_sensor/pir_01_motion/config
+{
+  "name": "PIR Motion Sensor",
+  "state_topic": "smartbin/bin-01/pir-01/motion",
+  "payload_on": "detected",
+  "payload_off": "clear",
+  "device_class": "motion",
+  "unique_id": "pir_01_motion",
+  "device": {
+    "identifiers": ["pir-01"],
+    "name": "PIR Sensor 01",
+    "model": "HC-SR501",
+    "manufacturer": "Generic"
+  }
+}
+
+
 # PartA 
 
 ---
@@ -24,7 +43,7 @@ docker compose build
 # Terminal 1 — MQTT broker
 docker compose up 
 
-# run the homeassistant docker 
+# first time homeassistant set up 
 docker run -d \
   --name homeassistant \
   --restart unless-stopped \
@@ -33,6 +52,8 @@ docker run -d \
   --network host \
   ghcr.io/home-assistant/home-assistant:stable
 
+# start homeassistant 
+docker start homeassistant
 ```
 
 
