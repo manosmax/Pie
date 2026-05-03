@@ -12,8 +12,8 @@ from pirlib import PirInterpreter, PirSampler
 
 logger = logging.getLogger(__name__)
 
-def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic):
-    """Sends the MQTT Discovery JSON to Home Assistant for BOTH sensors."""
+def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic, fill_topic):
+    """Sends the MQTT Discovery JSON to Home Assistant for ALL sensors."""
     
     device_info = {
         "identifiers": [bin_id],
@@ -42,10 +42,21 @@ def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic):
         "device": device_info
     }
 
+    fill_config = {
+        "name": f"Waste Bin {bin_id} Fill Level",
+        "state_topic": fill_topic,
+        "unit_of_measurement": "%",
+        "icon": "mdi:delete-variant",
+        "state_class": "measurement",
+        "unique_id": f"{bin_id}_fill_level",
+        "device": device_info
+    }
+
     client.publish(f"homeassistant/binary_sensor/{bin_id}_{sensor_id}/config", json.dumps(pir_config), qos=1, retain=True)
     client.publish(f"homeassistant/sensor/{bin_id}_counter/config", json.dumps(counter_config), qos=1, retain=True)
+    client.publish(f"homeassistant/sensor/{bin_id}_fill/config", json.dumps(fill_config), qos=1, retain=True)
     
-    print("[HA] Discovery sent for Motion and Counter entities.")
+    print("[HA] Discovery sent for Motion, Counter, and Fill Level entities.")
 
 def utc_now_iso() -> str:
     return (
@@ -87,8 +98,11 @@ JSONLD_CONTEXT = {
     "seq":                  {"@id": "pipeline:sequenceNumber","@type": "xsd:integer"},
     "run_id":               {"@id": "pipeline:runId",         "@type": "xsd:string"},
     "pipeline_latency_ms":  {"@id": "pipeline:latencyMs",     "@type": "xsd:decimal"},
-    "item_count":           {"@id": "pipeline:itemCount",     "@type": "xsd:integer"} # Added to context
+    "item_count":           {"@id": "pipeline:itemCount",     "@type": "xsd:integer"},
+    "fill_level":           {"@id": "pipeline:fillLevel",     "@type": "xsd:integer"}
 }
+
+BIN_CAPACITY = 50
 
 def producer_loop(
     event_q: Queue,
@@ -109,6 +123,7 @@ def producer_loop(
         for _ in interp.update(raw, t):
             seq += 1
             item_count += 1
+            fill_level = min(int((item_count / BIN_CAPACITY) * 100), 100)
             
             record = {
                 "@context": JSONLD_CONTEXT,
@@ -121,7 +136,8 @@ def producer_loop(
                 "seq": seq,
                 "run_id": run_id,
                 "mounted_on": f"urn:wastebin:{args.bin_id}",
-                "item_count": item_count  
+                "item_count": item_count,
+                "fill_level": fill_level
             }
             try:
                 event_q.put_nowait(record)
@@ -139,15 +155,16 @@ def publisher_loop(
     stop_flag: dict,
 ) -> None:
     topic, qos = args.topic, args.qos
-    ha_pir_topic = f"smartbin/{args.bin_id}/{args.sensor_id}/motion"
+    ha_pir_topic     = f"smartbin/{args.bin_id}/{args.sensor_id}/motion"
     ha_counter_topic = f"smartbin/{args.bin_id}/counter/state"
+    ha_fill_topic    = f"smartbin/{args.bin_id}/fill-level/state"
 
     client = mqtt.Client()
 
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             print("[PUB] Connected to MQTT Broker")
-            send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_counter_topic)
+            send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_counter_topic, ha_fill_topic)
         else:
             print(f"[PUB] Connection failed with code {rc}")
 
@@ -174,11 +191,14 @@ def publisher_loop(
         current_count = record.get("item_count", 0)
         client.publish(ha_counter_topic, str(current_count), qos=qos)
 
+        fill_level = record.get("fill_level", 0)
+        client.publish(ha_fill_topic, str(fill_level), qos=qos)
+
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             metrics["errors"] += 1
             logger.warning("Publish failed (rc=%d)", result.rc)
         elif args.verbose:
-            print(f"[PUB] seq={record.get('seq')} → Motion detected, count is now {current_count}")
+            print(f"[PUB] seq={record.get('seq')} → count={current_count} fill={fill_level}%")
 
         event_q.task_done()
 
