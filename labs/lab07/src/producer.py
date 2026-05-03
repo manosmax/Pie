@@ -12,8 +12,8 @@ from pirlib import PirInterpreter, PirSampler
 
 logger = logging.getLogger(__name__)
 
-def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic, fill_topic):
-    """Sends the MQTT Discovery JSON to Home Assistant for ALL sensors."""
+def send_discovery(client, bin_id, sensor_id, pir_topic, fill_topic):
+    """Sends the MQTT Discovery JSON to Home Assistant for Motion and Fill Level sensors."""
     
     device_info = {
         "identifiers": [bin_id],
@@ -32,15 +32,6 @@ def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic, fill_top
         "off_delay": 6, 
         "device": device_info
     }
-    
-    counter_config = {
-        "name": f"Waste Bin {bin_id} Items",
-        "state_topic": counter_topic,
-        "icon": "mdi:delete-restore",      
-        "state_class": "measurement",    
-        "unique_id": f"{bin_id}_item_counter",
-        "device": device_info
-    }
 
     fill_config = {
         "name": f"Waste Bin {bin_id} Fill Level",
@@ -53,10 +44,9 @@ def send_discovery(client, bin_id, sensor_id, pir_topic, counter_topic, fill_top
     }
 
     client.publish(f"homeassistant/binary_sensor/{bin_id}_{sensor_id}/config", json.dumps(pir_config), qos=1, retain=True)
-    client.publish(f"homeassistant/sensor/{bin_id}_counter/config", json.dumps(counter_config), qos=1, retain=True)
     client.publish(f"homeassistant/sensor/{bin_id}_fill/config", json.dumps(fill_config), qos=1, retain=True)
     
-    print("[HA] Discovery sent for Motion, Counter, and Fill Level entities.")
+    print("[HA] Discovery sent for Motion and Fill Level entities.")
 
 def utc_now_iso() -> str:
     return (
@@ -90,7 +80,7 @@ JSONLD_CONTEXT = {
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "pipeline": "https://github.com/manosmax/Smart-Waste-Bin/blob/main/docs/Ontology#",
     "event_time":           {"@id": "sosa:resultTime",        "@type": "xsd:dateTime"},
-    "ingest_time":           {"@id": "pipeline:ingestTime",    "@type": "xsd:dateTime"},
+    "ingest_time":          {"@id": "pipeline:ingestTime",    "@type": "xsd:dateTime"},
     "device_id":            {"@id": "sosa:madeBySensor",      "@type": "@id"},
     "mounted_on":           {"@id": "sosa:isHostedBy",        "@type": "@id"},
     "event_type":           {"@id": "sosa:observedProperty",  "@type": "@id"},
@@ -114,7 +104,7 @@ def producer_loop(
 ) -> None:
     run_id = str(uuid.uuid4())
     seq = 0
-    item_count = 0  
+    item_count = 0
 
     while not stop_flag["stop"]:
         t = time.monotonic()
@@ -155,16 +145,15 @@ def publisher_loop(
     stop_flag: dict,
 ) -> None:
     topic, qos = args.topic, args.qos
-    ha_pir_topic     = f"smartbin/{args.bin_id}/{args.sensor_id}/motion"
-    ha_counter_topic = f"smartbin/{args.bin_id}/counter/state"
-    ha_fill_topic    = f"smartbin/{args.bin_id}/fill-level/state"
+    ha_pir_topic  = f"smartbin/{args.bin_id}/{args.sensor_id}/motion"
+    ha_fill_topic = f"smartbin/{args.bin_id}/fill-level/state"
 
     client = mqtt.Client()
 
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             print("[PUB] Connected to MQTT Broker")
-            send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_counter_topic, ha_fill_topic)
+            send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_fill_topic)
         else:
             print(f"[PUB] Connection failed with code {rc}")
 
@@ -185,11 +174,8 @@ def publisher_loop(
             continue
 
         result = client.publish(topic, json.dumps(record, default=str), qos=qos)
-        
+
         client.publish(ha_pir_topic, "detected", qos=qos)
-        
-        current_count = record.get("item_count", 0)
-        client.publish(ha_counter_topic, str(current_count), qos=qos)
 
         fill_level = record.get("fill_level", 0)
         client.publish(ha_fill_topic, str(fill_level), qos=qos)
@@ -198,7 +184,7 @@ def publisher_loop(
             metrics["errors"] += 1
             logger.warning("Publish failed (rc=%d)", result.rc)
         elif args.verbose:
-            print(f"[PUB] seq={record.get('seq')} → count={current_count} fill={fill_level}%")
+            print(f"[PUB] seq={record.get('seq')} → fill={fill_level}%")
 
         event_q.task_done()
 
