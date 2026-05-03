@@ -1,5 +1,18 @@
 anastasis 12345678
 
+# PartA 
+
+#### Run homeasistant 
+docker run -d \
+  --name homeassistant \
+  --restart unless-stopped \
+  -v ~/homeassistant/config:/config \
+  -v /run/dbus:/run/dbus:ro \
+  --network host \
+  ghcr.io/home-assistant/home-assistant:stable
+
+
+
 # Home Assistant basics
 
 **RQ1: What is Home Assistant and what problem does it solve? Why use it instead of building a custom dashboard?**
