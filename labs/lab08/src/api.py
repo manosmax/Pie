@@ -6,246 +6,248 @@ from flask import Flask
 from flask_restx import Api, Resource, fields, reqparse
 
 # ---------------------------------------------------------------------------
-# App & API setup
+# DEBUG UTILITIES
 # ---------------------------------------------------------------------------
 
-app = Flask(__name__)
-api = Api(
-    app,
-    version="1.0",
-    title="Smart Wastebin API",
-    description="REST API for querying Smart Wastebin sensor data and bin status",
-)
+def print_tree(start_path, prefix=""):
+    if not os.path.exists(start_path):
+        print(f"{prefix}❌ {start_path} (not found)")
+        return
 
-# Namespaces
-ns      = api.namespace("bins",    description="Wastebin operations")
-nsensor = api.namespace("sensors", description="Sensor operations")
-nmqtt   = api.namespace("mqtt",    description="MQTT operations")
+    print(f"{prefix}📁 {os.path.basename(start_path)}/")
+
+    try:
+        items = os.listdir(start_path)
+    except PermissionError:
+        print(f"{prefix}⚠️ Permission denied")
+        return
+
+    for i, name in enumerate(sorted(items)):
+        path = os.path.join(start_path, name)
+        is_last = i == len(items) - 1
+        connector = "└── " if is_last else "├── "
+
+        if os.path.isdir(path):
+            print(f"{prefix}{connector}📁 {name}/")
+            new_prefix = prefix + ("    " if is_last else "│   ")
+            print_tree(path, new_prefix)
+        else:
+            print(f"{prefix}{connector}📄 {name}")
+
+
+def debug_print_json(label, data):
+    print(f"\n📦 {label}:")
+    try:
+        print(json.dumps(data, indent=2))
+    except Exception as e:
+        print("❌ Failed to print JSON:", e)
+
 
 # ---------------------------------------------------------------------------
-# Data loading
+# PATH SETUP
 # ---------------------------------------------------------------------------
 
-# ✅ FIXED PATH (points to ../models)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "..", "models")
+ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
+DATA_DIR = os.path.join(ROOT_DIR, "models")
 
 EVENTS_FILE = os.path.join(DATA_DIR, "motion_events.jsonl")
 
+print("\n================ DEBUG START ================\n")
+print("📍 BASE_DIR:", BASE_DIR)
+print("📍 ROOT_DIR:", ROOT_DIR)
+print("📍 DATA_DIR:", DATA_DIR)
+print("📍 EVENTS_FILE:", EVENTS_FILE)
 
-def load_json(filepath: str) -> dict:
+print("\n--- 🌳 FULL PROJECT TREE ---")
+print_tree(ROOT_DIR)
+
+print("\n--- 🌳 MODELS TREE ---")
+print_tree(DATA_DIR)
+
+print("\n--- 📂 FILE EXISTENCE CHECK ---")
+wastebin_path = os.path.join(DATA_DIR, "wastebin.jsonld")
+sensor_path   = os.path.join(DATA_DIR, "sensor.jsonld")
+env_path      = os.path.join(DATA_DIR, "environment.jsonld")
+
+print("wastebin.jsonld:", os.path.exists(wastebin_path), wastebin_path)
+print("sensor.jsonld:", os.path.exists(sensor_path), sensor_path)
+print("environment.jsonld:", os.path.exists(env_path), env_path)
+print("motion_events.jsonl:", os.path.exists(EVENTS_FILE), EVENTS_FILE)
+
+print("\n============================================\n")
+
+# ---------------------------------------------------------------------------
+# APP SETUP
+# ---------------------------------------------------------------------------
+
+app = Flask(__name__)
+api = Api(app)
+
+ns = api.namespace("bins")
+nsensor = api.namespace("sensors")
+
+# ---------------------------------------------------------------------------
+# LOADERS
+# ---------------------------------------------------------------------------
+
+def load_json(filepath):
+    print(f"\n📥 Loading JSON: {filepath}")
     with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+        debug_print_json("Loaded JSON", data)
+        return data
 
 
-def load_events(
-    filepath: str,
-    limit: int | None = None,
-    sensor_id: str | None = None,
-) -> list:
+def load_events(filepath, limit=None, sensor_id=None):
+    print(f"\n📥 Loading events from: {filepath}")
+
     events = []
 
     if not os.path.exists(filepath):
+        print("⚠️ Events file does not exist")
         return events
 
     with open(filepath, "r", encoding="utf-8") as f:
         for line in f:
-            line = line.strip()
-            if not line:
-                continue
             try:
                 record = json.loads(line)
                 if sensor_id and record.get("device_id") != sensor_id:
                     continue
                 events.append(record)
-            except json.JSONDecodeError:
+            except:
                 continue
 
     events.reverse()
 
-    if limit is not None:
+    if limit:
         events = events[:limit]
 
+    print(f"✅ Loaded {len(events)} events")
     return events
 
 
 # ---------------------------------------------------------------------------
-# Build in-memory registries from JSON-LD model files
+# BUILD REGISTRIES
 # ---------------------------------------------------------------------------
 
-def _build_registries() -> tuple[dict, dict]:
-    bins_reg    = {}
-    sensors_reg = {}
-
-    wastebin_path = os.path.join(DATA_DIR, "wastebin.jsonld")
-    sensor_path   = os.path.join(DATA_DIR, "sensor.jsonld")
-    env_path      = os.path.join(DATA_DIR, "environment.jsonld")
-
-    print("📂 DATA_DIR:", DATA_DIR)
-    print("📄 wastebin path exists:", os.path.exists(wastebin_path))
-    print("📄 sensor path exists:", os.path.exists(sensor_path))
+def _build_registries():
+    bins = {}
+    sensors = {}
 
     env_name = "Unknown"
+
     if os.path.exists(env_path):
-        env_data = load_json(env_path)
-        env_name = env_data.get("name", env_data.get("@id", "Unknown"))
+        env = load_json(env_path)
+        env_name = env.get("name", env.get("@id", "Unknown"))
 
     if os.path.exists(wastebin_path):
         wb = load_json(wastebin_path)
         bin_id = wb.get("@id", "unknown")
 
-        bins_reg[bin_id] = {
-            "id":       bin_id,
-            "name":     wb.get("name", ""),
+        print("🆔 BIN ID FOUND:", bin_id)
+
+        bins[bin_id] = {
+            "id": bin_id,
+            "name": wb.get("name"),
             "location": env_name,
-            "status":   wb.get("pipeline:status", "unknown"),
+            "status": wb.get("pipeline:status"),
         }
+    else:
+        print("❌ wastebin.jsonld NOT FOUND")
 
     if os.path.exists(sensor_path):
         s = load_json(sensor_path)
-        sensor_id  = s.get("@id", "unknown")
-        raw_status = s.get("pipeline:status", "unknown")
+        sensor_id = s.get("@id", "unknown")
 
-        sensors_reg[sensor_id] = {
-            "id":         sensor_id,
-            "type":       "PIR",
-            "model":      s.get("model", ""),
-            "mounted_on": s.get("sosa:isHostedBy", ""),
-            "status":     raw_status.get("@value", "unknown")
-                          if isinstance(raw_status, dict) else raw_status,
+        print("🆔 SENSOR ID FOUND:", sensor_id)
+
+        raw_status = s.get("pipeline:status")
+
+        sensors[sensor_id] = {
+            "id": sensor_id,
+            "type": "PIR",
+            "model": s.get("model"),
+            "mounted_on": s.get("sosa:isHostedBy"),
+            "status": raw_status.get("@value") if isinstance(raw_status, dict) else raw_status,
         }
+    else:
+        print("❌ sensor.jsonld NOT FOUND")
 
-    print("✅ Bins loaded:", bins_reg)
-    print("✅ Sensors loaded:", sensors_reg)
+    print("\n🔗 SENSOR → BIN mapping:")
+    for sid, s in sensors.items():
+        print(f"  Sensor {sid} mounted on → {s.get('mounted_on')}")
 
-    return bins_reg, sensors_reg
+    print("\n📊 FINAL REGISTRIES:")
+    debug_print_json("Bins", bins)
+    debug_print_json("Sensors", sensors)
+
+    return bins, sensors
 
 
 bins_registry, sensors_registry = _build_registries()
 
+# ---------------------------------------------------------------------------
+# HELPERS
+# ---------------------------------------------------------------------------
 
-def find_bin(bin_id: str) -> dict | None:
+def find_bin(bin_id):
+    print(f"\n🔍 Looking for bin: {bin_id}")
+    print("Available bins:", list(bins_registry.keys()))
     return bins_registry.get(bin_id)
 
 
-def find_sensor(sensor_id: str) -> dict | None:
-    return sensors_registry.get(sensor_id)
-
-
-def get_sensor_for_bin(bin_id: str) -> str | None:
+def get_sensor_for_bin(bin_id):
     for sid, s in sensors_registry.items():
         if s.get("mounted_on") == bin_id:
+            print(f"✅ Found sensor {sid} for bin {bin_id}")
             return sid
+    print("⚠️ No sensor found for bin")
     return None
 
 
-def utc_now_iso() -> str:
-    return (
-        datetime.now(timezone.utc)
-        .isoformat(timespec="milliseconds")
-        .replace("+00:00", "Z")
-    )
-
-
 # ---------------------------------------------------------------------------
-# Swagger models
+# API MODELS
 # ---------------------------------------------------------------------------
 
 bin_model = api.model("Bin", {
-    "id":       fields.String(required=True),
-    "name":     fields.String,
+    "id": fields.String,
+    "name": fields.String,
     "location": fields.String,
-    "status":   fields.String,
+    "status": fields.String,
 })
-
-event_model = api.model("Event", {
-    "event_time":          fields.String,
-    "device_id":           fields.String,
-    "motion_state":        fields.String,
-    "fill_level":          fields.Integer,
-    "item_count":          fields.Integer,
-    "pipeline_latency_ms": fields.Float,
-})
-
-sensor_model = api.model("Sensor", {
-    "id":         fields.String(required=True),
-    "type":       fields.String,
-    "model":      fields.String,
-    "mounted_on": fields.String,
-    "status":     fields.String,
-})
-
-events_parser = reqparse.RequestParser()
-events_parser.add_argument("limit", type=int, default=50)
 
 # ---------------------------------------------------------------------------
-# BINS endpoints
+# ENDPOINTS
 # ---------------------------------------------------------------------------
 
 @ns.route("/")
 class BinList(Resource):
-    @ns.marshal_list_with(bin_model)
     def get(self):
-        return list(bins_registry.values()), 200
+        print("\n📡 GET /bins")
+        return list(bins_registry.values())
 
 
 @ns.route("/<string:bin_id>")
 class BinDetail(Resource):
-    @ns.marshal_with(bin_model)
     def get(self, bin_id):
-        bin_data = find_bin(bin_id)
-        if not bin_data:
-            api.abort(404, f"Bin {bin_id} not found")
-        return bin_data
-
-
-@ns.route("/<string:bin_id>/sensors")
-class BinSensors(Resource):
-    @ns.marshal_list_with(sensor_model)
-    def get(self, bin_id):
-        if not find_bin(bin_id):
-            api.abort(404, f"Bin {bin_id} not found")
-        mounted = [s for s in sensors_registry.values() if s.get("mounted_on") == bin_id]
-        return mounted, 200
+        print(f"\n📡 GET /bins/{bin_id}")
+        b = find_bin(bin_id)
+        if not b:
+            return {"error": "not found"}, 404
+        return b
 
 
 @ns.route("/<string:bin_id>/events")
 class BinEvents(Resource):
-    @ns.expect(events_parser)
-    @ns.marshal_list_with(event_model)
     def get(self, bin_id):
-        if not find_bin(bin_id):
-            api.abort(404, f"Bin {bin_id} not found")
-
-        args = events_parser.parse_args()
+        print(f"\n📡 GET /bins/{bin_id}/events")
         sensor_id = get_sensor_for_bin(bin_id)
-        events = load_events(EVENTS_FILE, limit=args["limit"], sensor_id=sensor_id)
-
-        return events, 200
-
-
-# ---------------------------------------------------------------------------
-# SENSORS endpoints
-# ---------------------------------------------------------------------------
-
-@nsensor.route("/")
-class SensorList(Resource):
-    @nsensor.marshal_list_with(sensor_model)
-    def get(self):
-        return list(sensors_registry.values()), 200
-
-
-@nsensor.route("/<string:sensor_id>")
-class SensorDetail(Resource):
-    @nsensor.marshal_with(sensor_model)
-    def get(self, sensor_id):
-        sensor = find_sensor(sensor_id)
-        if not sensor:
-            api.abort(404, f"Sensor {sensor_id} not found")
-        return sensor
+        return load_events(EVENTS_FILE, sensor_id=sensor_id)
 
 
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    print("\n🚀 STARTING FLASK...\n")
     app.run(debug=True, host="0.0.0.0", port=5000)
