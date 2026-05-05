@@ -66,11 +66,12 @@ def load_events(
 
 def _build_registries() -> tuple[dict, dict]:
     bins_reg    = {}
-    sensors_reg = {}
-    MODELS_DIR = os.path.join(DATA_DIR, "models")
+    sensors_reg = {}    
+    MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
     wastebin_path = os.path.join(MODELS_DIR, "wastebin.jsonld")
     sensor_path   = os.path.join(MODELS_DIR, "sensor.jsonld")
     env_path      = os.path.join(MODELS_DIR, "environment.jsonld")
+
     print("PATH TO WATEBING::::" , wastebin_path)
     env_name = "Unknown"
     if os.path.exists(env_path):
