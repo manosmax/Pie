@@ -1,0 +1,48 @@
+# Smart Wastebin — Custom Ontology Terms
+
+**Base namespace:** `https://github.com/manosmax/Pie/blob/main/docs/ontology.md#`
+
+--- 
+
+## Pipeline Events
+
+| Term | Type | Description |
+|------|------|-------------|
+| `sequenceNumber` | `xsd:integer` | Per-run monotonic counter. Resets on new run. Detects gaps/reordering. |
+| `runId` | `xsd:string` | UUID per `pipeline.py` invocation. Groups events from one execution. |
+| `ingestTime` | `xsd:dateTime` | UTC time when consumer dequeues a record. Distinct from `sosa:resultTime`. |
+| `latencyMs` | `xsd:decimal` | Milliseconds between `sosa:resultTime` and `pipeline:ingestTime`. Rising value = consumer lag. |
+
+## Sensor / Device
+
+| Term | Type | Description |
+|------|------|-------------|
+| `gpioPin` | `xsd:integer` | BCM GPIO pin number (Broadcom numbering). |
+| `physicalPin` | `xsd:integer` | Physical 40-pin header number. Wiring reference. |
+| `sampleIntervalS` | `xsd:float` | GPIO poll rate in seconds. Default: `0.1` s (10 Hz). |
+| `cooldownS` | `xsd:float` | Min seconds between consecutive motion events. Prevents queue flooding. |
+| `minHighS` | `xsd:float` | Min HIGH duration before a motion event fires. Filters noise. |
+| `operatingMode` | `xsd:string` | HC-SR501 jumper: `repeat-trigger` or `single-trigger`. |
+| `sensingPrinciple` | `xsd:string` | Detection method (e.g. passive infrared for HC-SR501). |
+| `indoorOutdoor` | `xsd:string` | Deployment context: `indoor` or `outdoor`. |
+| `deployedIn` | `@id` | Links sensor → environment (`urn:env:*`). |
+
+## Wastebin
+
+| Term | Type | Description |
+|------|------|-------------|
+| `capacity` | `xsd:integer` | Max volume in litres. |
+| `wasteType` | `xsd:string` | `general`, `recyclable`, `organic`, or `hazardous`. |
+| `status` | `xsd:string` | `active`, `full`, or `maintenance`. |
+| `locatedIn` | `@id` | Links bin → environment (`urn:env:*`). |
+
+## Environment
+
+| Term | Type | Description |
+|------|------|-------------|
+| `spatialHierarchy` | object | Containment chain: campus → building → floor → room. Use `TBD` for unknowns. |
+| `trafficLevel` | `xsd:string` | Pedestrian activity: `low`, `medium`, or `high`. |
+| `contains` | `@id[]` | Wastebins physically inside this environment. |
+| `hostsSensors` | `@id[]` | All sensors deployed in this environment. |
+
+

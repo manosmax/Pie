@@ -1,0 +1,56 @@
+{
+  "@context": {
+    "@vocab":   "https://schema.org/",
+    "sosa":     "http://www.w3.org/ns/sosa/",
+    "ssn":      "http://www.w3.org/ns/ssn/",
+    "xsd":      "http://www.w3.org/2001/XMLSchema#",
+    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/Ontology#",
+
+    "event_time": {
+      "@id":   "sosa:resultTime",
+      "@type": "xsd:dateTime"
+    },
+
+    "ingest_time": {
+      "@id":   "pipeline:ingestTime",
+      "@type": "xsd:dateTime"
+    },
+
+    "device_id": {
+      "@id":   "sosa:madeBySensor",
+      "@type": "@id"
+    },
+
+    "mounted_on": {
+      "@id":   "sosa:isHostedBy",
+      "@type": "@id"
+    },
+
+    "event_type": {
+      "@id":   "sosa:observedProperty",
+      "@type": "@id"
+    },
+
+    "motion_state": {
+      "@id":   "sosa:hasSimpleResult",
+      "@type": "xsd:string"
+    },
+
+    "seq": {
+      "@id":   "pipeline:sequenceNumber",
+      "@type": "xsd:integer"
+    },
+
+    "run_id": {
+      "@id":   "pipeline:runId",
+      "@type": "xsd:string"
+    },
+
+    "pipeline_latency_ms": {
+      "@id":   "pipeline:latencyMs",
+      "@type": "xsd:decimal"
+    }
+  }
+}
+
+
