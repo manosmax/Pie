@@ -25,5 +25,9 @@ services:
   api:
     build: .
     command: python api.py 
+    ports:
+      - "5000:5000"  # Map host port 5000 to container port 5000
     devices:
       - /dev/gpiochip0:/dev/gpiochip0
+    depends_on:
+      - mosquitto
