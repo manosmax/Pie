@@ -77,7 +77,8 @@ def _build_registries() -> tuple[dict, dict]:
     if os.path.exists(env_path):
         env_data = load_json(env_path)
         env_name = env_data.get("name", env_data.get("@id", "Unknown"))
-
+    else : 
+        print("path not exist") 
     if os.path.exists(wastebin_path):
         wb = load_json(wastebin_path)
         bin_id = wb.get("@id", "unknown")
