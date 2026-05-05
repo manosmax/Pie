@@ -10,6 +10,7 @@ from flask_restx import Api, Resource, fields, reqparse
 # ---------------------------------------------------------------------------
 
 app = Flask(__name__)
+
 api = Api(
     app,
     version="1.0",
@@ -22,11 +23,7 @@ ns      = api.namespace("bins",    description="Wastebin operations")
 nsensor = api.namespace("sensors", description="Sensor operations")
 nmqtt   = api.namespace("mqtt",    description="MQTT operations")
 
-# ---------------------------------------------------------------------------
-# Data loading
-# ---------------------------------------------------------------------------
-
-DATA_DIR    = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR    = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data") # ο φάκελος lab08 πρακτικά 
 EVENTS_FILE = os.path.join(DATA_DIR, "motion_events.jsonl")
 
 
@@ -34,7 +31,7 @@ def load_json(filepath: str) -> dict:
     with open(filepath, "r", encoding="utf-8") as f:
         return json.load(f)
 
-
+#ανοίγει το αρχείο motion events και για κάθε ένα αρχείοκ το βάζει στο local dictionary events 
 def load_events(
     filepath: str,
     limit: int | None = None,
@@ -66,12 +63,8 @@ def load_events(
     return events
 
 
-# ---------------------------------------------------------------------------
-# Build in-memory registries from JSON-LD model files
-# ---------------------------------------------------------------------------
 
 def _build_registries() -> tuple[dict, dict]:
-    """Load wastebin.jsonld and sensor.jsonld into simple flat dicts."""
     bins_reg    = {}
     sensors_reg = {}
 
@@ -171,9 +164,6 @@ sensor_model = api.model("Sensor", {
     "status":     fields.String(description="Current sensor status"),
 })
 
-# ---------------------------------------------------------------------------
-# Query parameter parsers
-# ---------------------------------------------------------------------------
 
 events_parser = reqparse.RequestParser()
 events_parser.add_argument("limit", type=int, default=50,   help="Max events to return")
