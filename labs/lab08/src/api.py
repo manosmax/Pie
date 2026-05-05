@@ -105,6 +105,7 @@ def _build_registries() -> tuple[dict, dict]:
 
 bins_registry, sensors_registry = _build_registries()
 
+print(bins_registry) 
 
 def find_bin(bin_id: str) -> dict | None:
     return bins_registry.get(bin_id)
