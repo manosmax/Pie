@@ -1,2 +1,4 @@
 paho-mqtt
 lgpio
+flask
+flask-restx
