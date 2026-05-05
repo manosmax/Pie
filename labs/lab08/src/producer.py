@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def send_discovery(client, bin_id, sensor_id, pir_topic, fill_topic):
     """Sends the MQTT Discovery JSON to Home Assistant for Motion and Fill Level sensors."""
-    
+
     device_info = {
         "identifiers": [bin_id],
         "name": f"Smart Waste Bin {bin_id}",
@@ -29,7 +29,7 @@ def send_discovery(client, bin_id, sensor_id, pir_topic, fill_topic):
         "payload_off": "clear",
         "device_class": "motion",
         "unique_id": f"{bin_id}_{sensor_id}_motion",
-        "off_delay": 6, 
+        "off_delay": 6,
         "device": device_info
     }
 
@@ -45,7 +45,7 @@ def send_discovery(client, bin_id, sensor_id, pir_topic, fill_topic):
 
     client.publish(f"homeassistant/binary_sensor/{bin_id}_{sensor_id}/config", json.dumps(pir_config), qos=1, retain=True)
     client.publish(f"homeassistant/sensor/{bin_id}_fill/config", json.dumps(fill_config), qos=1, retain=True)
-    
+
     print("[HA] Discovery sent for Motion and Fill Level entities.")
 
 def utc_now_iso() -> str:
@@ -62,34 +62,34 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--sensor-id",       default="pir-01")
     p.add_argument("--pin",             type=int,   default=17)
     p.add_argument("--sample-interval", type=float, default=0.1)
-    p.add_argument("--cooldown",         type=float, default=5.0)
-    p.add_argument("--min-high",         type=float, default=0.2)
-    p.add_argument("--queue-size",       type=int,   default=100)
-    p.add_argument("--duration",         type=float, default=600.0)
-    p.add_argument("--host",             default="localhost")
-    p.add_argument("--port",             type=int,   default=1883)
-    p.add_argument("--qos",              type=int,   default=1)
-    p.add_argument("--topic",            default="smartbin/bin-01/pir-01/events")
-    p.add_argument("--verbose",          action="store_true")
+    p.add_argument("--cooldown",        type=float, default=5.0)
+    p.add_argument("--min-high",        type=float, default=0.2)
+    p.add_argument("--queue-size",      type=int,   default=100)
+    p.add_argument("--duration",        type=float, default=600.0)
+    p.add_argument("--host",            default="localhost")
+    p.add_argument("--port",            type=int,   default=1883)
+    p.add_argument("--qos",             type=int,   default=1)
+    p.add_argument("--topic",           default="smartbin/bin-01/pir-01/events")
+    p.add_argument("--verbose",         action="store_true")
     return p.parse_args()
 
 JSONLD_CONTEXT = {
-    "@vocab": "https://schema.org/",
-    "sosa": "http://www.w3.org/ns/sosa/",
-    "ssn": "http://www.w3.org/ns/ssn/",
-    "xsd": "http://www.w3.org/2001/XMLSchema#",
-    "pipeline": "https://github.com/manosmax/Smart-Waste-Bin/blob/main/docs/Ontology#",
-    "event_time":           {"@id": "sosa:resultTime",        "@type": "xsd:dateTime"},
-    "ingest_time":          {"@id": "pipeline:ingestTime",    "@type": "xsd:dateTime"},
-    "device_id":            {"@id": "sosa:madeBySensor",      "@type": "@id"},
-    "mounted_on":           {"@id": "sosa:isHostedBy",        "@type": "@id"},
-    "event_type":           {"@id": "sosa:observedProperty",  "@type": "@id"},
-    "motion_state":         {"@id": "sosa:hasSimpleResult",   "@type": "xsd:string"},
-    "seq":                  {"@id": "pipeline:sequenceNumber","@type": "xsd:integer"},
-    "run_id":               {"@id": "pipeline:runId",         "@type": "xsd:string"},
-    "pipeline_latency_ms":  {"@id": "pipeline:latencyMs",     "@type": "xsd:decimal"},
-    "item_count":           {"@id": "pipeline:itemCount",     "@type": "xsd:integer"},
-    "fill_level":           {"@id": "pipeline:fillLevel",     "@type": "xsd:integer"}
+    "@vocab":   "https://schema.org/",
+    "sosa":     "http://www.w3.org/ns/sosa/",
+    "ssn":      "http://www.w3.org/ns/ssn/",
+    "xsd":      "http://www.w3.org/2001/XMLSchema#",
+    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#",
+    "event_time":          {"@id": "sosa:resultTime",         "@type": "xsd:dateTime"},
+    "ingest_time":         {"@id": "pipeline:ingestTime",     "@type": "xsd:dateTime"},
+    "device_id":           {"@id": "sosa:madeBySensor",       "@type": "@id"},
+    "mounted_on":          {"@id": "sosa:isHostedBy",         "@type": "@id"},
+    "event_type":          {"@id": "sosa:observedProperty",   "@type": "@id"},
+    "motion_state":        {"@id": "sosa:hasSimpleResult",    "@type": "xsd:string"},
+    "seq":                 {"@id": "pipeline:sequenceNumber", "@type": "xsd:integer"},
+    "run_id":              {"@id": "pipeline:runId",          "@type": "xsd:string"},
+    "pipeline_latency_ms": {"@id": "pipeline:latencyMs",      "@type": "xsd:decimal"},
+    "item_count":          {"@id": "pipeline:itemCount",      "@type": "xsd:integer"},
+    "fill_level":          {"@id": "pipeline:fillLevel",      "@type": "xsd:integer"}
 }
 
 BIN_CAPACITY = 50
@@ -114,7 +114,7 @@ def producer_loop(
             seq += 1
             item_count += 1
             fill_level = min(int((item_count / BIN_CAPACITY) * 100), 100)
-            
+
             record = {
                 "@context": JSONLD_CONTEXT,
                 "@id": f"urn:event:{run_id}:{seq}",
@@ -170,7 +170,7 @@ def publisher_loop(
     while not stop_flag["stop"] or not event_q.empty():
         try:
             record = event_q.get(timeout=0.5)
-        except Exception:
+        except Empty:
             continue
 
         result = client.publish(topic, json.dumps(record, default=str), qos=qos)

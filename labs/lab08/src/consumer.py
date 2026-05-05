@@ -57,21 +57,21 @@ def subscriber_loop(
 
         try:
             event_dt = datetime.fromisoformat(record["event_time"].replace("Z", "+00:00"))
-            latency_ms = (now - event_dt).total_seconds() * 1000.0 # difference of event creation and consumption
+            latency_ms = (now - event_dt).total_seconds() * 1000.0  # difference of event creation and consumption
             record["pipeline_latency_ms"] = round(latency_ms, 3)
         except (KeyError, ValueError):
             record["pipeline_latency_ms"] = None
 
-        event_q.put(record)  
+        event_q.put(record)
 
-    #configure mqtt client 
+    # configure mqtt client
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(args.host, args.port, keepalive=60)
     client.loop_start()
 
-    # write to output 
+    # write to output
     with open(out_path, "a", encoding="utf-8") as f:
         while not stop_flag["stop"] or not event_q.empty():
             try:

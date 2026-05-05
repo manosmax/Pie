@@ -20,16 +20,16 @@
     "room":     "Kypes Lab"
   },
 
-  "pipeline:roomNumber":   "02",
+  "pipeline:roomNumber":    "02",
   "pipeline:indoorOutdoor": "indoor",
 
-  "pipeline:trafficLevel":    "high",
+  "pipeline:trafficLevel": "high",
 
   "pipeline:contains": [
     "urn:wastebin:bin-01"
   ],
 
   "pipeline:hostsSensors": [
-    "urn:dev:pir-01"
+    "urn:dev:team08:pir-01"
   ]
 }

@@ -4,7 +4,7 @@
     "sosa":     "http://www.w3.org/ns/sosa/",
     "ssn":      "http://www.w3.org/ns/ssn/",
     "xsd":      "http://www.w3.org/2001/XMLSchema#",
-    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/Ontology#",
+    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#",
 
     "event_time": {
       "@id":   "sosa:resultTime",
@@ -49,8 +49,16 @@
     "pipeline_latency_ms": {
       "@id":   "pipeline:latencyMs",
       "@type": "xsd:decimal"
+    },
+
+    "item_count": {
+      "@id":   "pipeline:itemCount",
+      "@type": "xsd:integer"
+    },
+
+    "fill_level": {
+      "@id":   "pipeline:fillLevel",
+      "@type": "xsd:integer"
     }
   }
 }
-
-
