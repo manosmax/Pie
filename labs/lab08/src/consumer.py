@@ -147,16 +147,16 @@ def publisher_loop(
         "cmd":     f"smartbin/{args.bin_id}/command",
     }
 
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
-    def on_connect(c: mqtt.Client, userdata, flags, rc: int) -> None:
-        if rc == 0:
+    def on_connect(c: mqtt.Client, userdata, flags, reason_code: int, properties) -> None:
+        if reason_code == 0:
             print(f"[MQTT publisher] Connected (bin={args.bin_id})")
             # Subscribe to the command topic so we receive empty-bin requests.
             c.subscribe(topics["cmd"], qos=1)
             send_discovery(c, args.bin_id, args.sensor_id, topics)
         else:
-            logger.error(f"[MQTT publisher] Connection failed rc={rc}")
+            logger.error(f"[MQTT publisher] Connection failed rc={reason_code}")
 
     def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
         """Handle commands published by the API (e.g. action=emptied)."""
