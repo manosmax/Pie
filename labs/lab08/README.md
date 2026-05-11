@@ -1,4 +1,4 @@
-# Lab 07 — Smart Bin & Home Assistant
+# Lab 08 — Swagger
 
 **Student:** anastasis | 12345678
 
@@ -22,40 +22,14 @@ lab08/
     └── interpreter.py
 ```
 
-### Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-**requirements.txt:**
-```
-flask
-flask-restx
-paho-mqtt
-```
 
 ### Run
 
-**1. Start the MQTT broker:**
+** Start the MQTT broker, API, Producer and Consumer:**
 ```bash
 docker compose up
 ```
 
-**2. Start the consumer** (writes events to JSONL):
-```bash
-python consumer.py --out data/motion_events.jsonl --verbose
-```
-
-**3. Start the producer** (reads PIR sensor, publishes to MQTT):
-```bash
-python producer.py --bin-id bin-01 --sensor-id pir-01 --verbose
-```
-
-**4. Start the REST API:**
-```bash
-python api.py
-```
 
 Open your browser and go to `http://<your-pi-ip>:5000` to access the Swagger UI.
 
