@@ -5,15 +5,11 @@ from datetime import datetime, timezone
 from flask import Flask
 from flask_restx import Api, Resource, fields, reqparse
 
-# ---------------------------------------------------------------------------
-# App & MQTT Setup
-# ---------------------------------------------------------------------------
+# Ρύθμιση Εφαρμογής & MQTT
 
 app = Flask(__name__)
 
-# FIX: Use "mosquitto" as the broker hostname so the API container reaches
-# the broker by its Docker Compose service name, not localhost (which would
-# point to the API container itself).
+# Χρήση "mosquitto" ως hostname για σύνδεση με broker
 MQTT_BROKER = os.environ.get("MQTT_BROKER", "mosquitto")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 
@@ -46,7 +42,7 @@ api = Api(
     description="REST API for querying Smart Wastebin sensor data and bin status",
 )
 
-# Namespaces
+# Ονοματοχώροι
 ns      = api.namespace("bins",    description="Wastebin operations")
 nsensor = api.namespace("sensors", description="Sensor operations")
 nmqtt   = api.namespace("mqtt",    description="MQTT operations")
@@ -55,9 +51,7 @@ DATA_DIR      = os.path.join(os.path.dirname(__file__), "data")
 EVENTS_FILE   = os.path.join(DATA_DIR, "motion_events.jsonl")
 EMPTIED_FILE  = os.path.join(DATA_DIR, "emptied_records.jsonl")
 
-# ---------------------------------------------------------------------------
-# Data Loading Helpers
-# ---------------------------------------------------------------------------
+# Βοηθητικές Συναρτήσεις Φόρτωσης Δεδομένων
 
 def load_json(filepath: str) -> dict:
     with open(filepath, "r", encoding="utf-8") as f:
@@ -80,7 +74,7 @@ def load_events(filepath: str, limit: int | None = None, sensor_id: str | None =
             except json.JSONDecodeError:
                 continue
 
-    events.reverse()  # most recent first
+    events.reverse()  # πιο πρόσφατα πρώτα
     return events[:limit] if limit is not None else events
 
 def load_emptied_records(bin_id: str, limit: int | None = None) -> list:
@@ -99,7 +93,7 @@ def load_emptied_records(bin_id: str, limit: int | None = None) -> list:
                     records.append(record)
             except json.JSONDecodeError:
                 continue
-    records.reverse()  # most recent first
+    records.reverse()  # πιο πρόσφατα πρώτα
     return records[:limit] if limit is not None else records
 
 def save_emptied_record(record: dict) -> None:
@@ -162,9 +156,7 @@ def get_sensor_for_bin(bin_id: str) -> str | None:
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
-# ---------------------------------------------------------------------------
-# Swagger Models
-# ---------------------------------------------------------------------------
+# Μοντέλα Swagger
 
 bin_model = api.model("Bin", {
     "id": fields.String(required=True),
@@ -204,9 +196,7 @@ events_parser.add_argument("limit", type=int, default=50)
 emptied_parser = reqparse.RequestParser()
 emptied_parser.add_argument("limit", type=int, default=20)
 
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
+# Τελικά Σημεία
 
 @ns.route("/")
 class BinList(Resource):
@@ -243,7 +233,7 @@ class BinEmpty(Resource):
         if not find_bin(bin_id):
             api.abort(404, f"Bin {bin_id} not found")
         
-        # Only allow emptying bins that have an active sensor
+        # Επιτρέπεται μόνο άδειασμα κάδων με ενεργό αισθητήρα
         sensor_id = get_sensor_for_bin(bin_id)
         if not sensor_id:
             api.abort(400, f"Bin {bin_id} has no active sensor attached")
@@ -252,8 +242,7 @@ class BinEmpty(Resource):
         emptied_by = payload.get("emptied_by", "operator")
         emptied_at = utc_now_iso()
 
-        # Build the MQTT command — the producer subscribes to this topic and
-        # resets its state when it receives action="emptied".
+        # Δημιουργία εντολής MQTT
         command_topic = f"smartbin/{bin_id}/command"
         command_payload = json.dumps({
             "action": "emptied",
@@ -267,7 +256,7 @@ class BinEmpty(Resource):
             api.abort(503, f"Failed to publish MQTT command (rc={result.rc}). "
                           "Is the broker reachable?")
 
-        # Persist locally so the record survives API restarts.
+        # Αποθήκευση τοπικά για επιβίωση επανεκκινήσεων API
         record = {
             "bin_id": bin_id,
             "emptied_at": emptied_at,
@@ -306,9 +295,7 @@ class MqttTopics(Resource):
         return {"topics": ["events", "motion", "fill-level", "command"]}, 200
 
 
-# ---------------------------------------------------------------------------
-# Execution
-# ---------------------------------------------------------------------------
+# Εκτέλεση
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
