@@ -46,6 +46,7 @@ curl "http://localhost:5000/bins/urn:wastebin:bin-01/events?limit=10"
 curl http://localhost:5000/mqtt/topics
 ```
 ### Async API Architecture
+
 PIR Sensor
    ↓
 Producer
