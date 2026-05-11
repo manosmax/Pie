@@ -207,8 +207,7 @@ OpenAPI documents synchronous HTTP APIs (request → response). AsyncAPI documen
 
 
 **RQ15: Show a screenshot of your AsyncAPI spec rendered in Swagger Editor or AsyncAPI Studio.**
-
-
+  <img width="1398" height="604" alt="image" src="https://github.com/user-attachments/assets/01752014-8579-4c59-a98d-4cf91fd4ff14" />
 
 **RQ16: Compare the `MotionEvent` message schema in your AsyncAPI spec with the `event_model` in your Flask-RESTx code. They describe the same data, what is different about the context in which each is used?**
 
