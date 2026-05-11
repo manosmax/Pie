@@ -22,18 +22,6 @@ lab08/
     └── interpreter.py
 ```
 
-### Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-**requirements.txt:**
-```
-flask
-flask-restx
-paho-mqtt
-```
 
 ### Run
 
