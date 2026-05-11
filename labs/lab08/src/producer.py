@@ -156,8 +156,9 @@ def publisher_loop(
         if rc == 0:
             print("[PUB] Connected to MQTT Broker")
             send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_fill_topic)
-            client.subscribe(command_topic, qos=qos)
-            print(f"[PUB] Subscribed to {command_topic}")
+            # Subscribe to wildcard to match API's topic format (smartbin/urn:wastebin:{bin_id}/command)
+            client.subscribe("smartbin/+/command", qos=qos)
+            print(f"[PUB] Subscribed to smartbin/+/command (matches: {command_topic})")
         else:
             print(f"[PUB] Connection failed with code {rc}")
 
