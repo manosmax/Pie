@@ -147,7 +147,7 @@ def publisher_loop(
         "cmd":     f"smartbin/{args.bin_id}/command",
     }
 
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
     def on_connect(c: mqtt.Client, userdata, flags, rc: int) -> None:
         if rc == 0:

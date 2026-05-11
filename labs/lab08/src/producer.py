@@ -150,7 +150,7 @@ def publisher_loop(
     ha_fill_topic = f"smartbin/{args.bin_id}/fill-level/state"
     command_topic = f"smartbin/{args.bin_id}/command"
 
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
