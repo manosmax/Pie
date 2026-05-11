@@ -152,15 +152,15 @@ def publisher_loop(
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
-    def on_connect(client, userdata, flags, rc):
-        if rc == 0:
+    def on_connect(client, userdata, flags, reason_code, properties):
+        if reason_code == 0:
             print("[PUB] Connected to MQTT Broker")
             send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_fill_topic)
             # Subscribe to wildcard to match API's topic format (smartbin/urn:wastebin:{bin_id}/command)
             client.subscribe("smartbin/+/command", qos=qos)
             print(f"[PUB] Subscribed to smartbin/+/command (matches: {command_topic})")
         else:
-            print(f"[PUB] Connection failed with code {rc}")
+            print(f"[PUB] Connection failed with code {reason_code}")
 
     def on_message(client, userdata, msg):
         try:

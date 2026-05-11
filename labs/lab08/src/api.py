@@ -33,17 +33,17 @@ def on_message(client, userdata, msg):
 
 mqtt_client.on_message = on_message
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
+def on_connect(client, userdata, flags, reason_code, properties):
+    if reason_code == 0:
         print("[MQTT] Connected to broker successfully.")
         client.subscribe("smartbin/#", qos=1)
         print("[MQTT] Subscribed to smartbin/#")
     else:
-        print(f"[MQTT] Connection failed with code {rc}")
+        print(f"[MQTT] Connection failed with code {reason_code}")
 
-def on_disconnect(client, userdata, rc):
-    if rc != 0:
-        print(f"[MQTT] Unexpected disconnect (rc={rc}). Will auto-reconnect...")
+def on_disconnect(client, userdata, reason_code, properties):
+    if reason_code != 0:
+        print(f"[MQTT] Unexpected disconnect (reason_code={reason_code}). Will auto-reconnect...")
 
 mqtt_client.on_connect = on_connect
 mqtt_client.on_disconnect = on_disconnect
