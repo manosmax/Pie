@@ -1,4 +1,4 @@
-# Lab 07 — Smart Bin & Home Assistant
+# Lab 08 — Swagger
 
 **Student:** anastasis | 12345678
 
