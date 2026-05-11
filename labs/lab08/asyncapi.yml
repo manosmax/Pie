@@ -129,6 +129,23 @@ channels:
       haDiscoveryFill:
         $ref: '#/components/messages/HaDiscoveryFill'
 
+  # =========================================================
+  # BIN EMPTY COMMAND
+  # =========================================================
+  binCommand:
+    address: smartbin/{bin_id}/command
+    description: |
+      Commands sent by the API to control bin state,
+      such as emptying/resetting the fill level.
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+    messages:
+      binCommand:
+        $ref: '#/components/messages/BinCommand'
+
 # ===========================================================
 # OPERATIONS
 # ===========================================================
@@ -202,6 +219,17 @@ operations:
     description: |
       Retained discovery payload allowing Home Assistant
       to automatically create a fill-level sensor entity.
+
+  publishBinCommand:
+    action: send
+    channel:
+      $ref: '#/channels/binCommand'
+
+    summary: API publishes bin control commands
+
+    description: |
+      Sent when the API receives an empty-bin request.
+      Commands the producer to reset fill level and item count.
 
   # ---------------------------------------------------------
   # CONSUMER RECEIVE OPERATIONS
@@ -464,3 +492,35 @@ components:
 
               manufacturer:
                 type: string
+
+    # =======================================================
+    # BIN COMMAND
+    # =======================================================
+    BinCommand:
+      name: BinCommand
+      contentType: application/json
+
+      payload:
+        type: object
+
+        required:
+          - action
+          - emptied_at
+          - emptied_by
+
+        properties:
+
+          action:
+            type: string
+            enum:
+              - emptied
+            description: Command action type
+
+          emptied_at:
+            type: string
+            format: date-time
+            description: ISO 8601 UTC timestamp of emptying
+
+          emptied_by:
+            type: string
+            description: Who initiated the emptying

@@ -1,6 +1,7 @@
 import json
 import os
 import paho.mqtt.client as mqtt
+import threading
 from datetime import datetime, timezone
 from flask import Flask
 from flask_restx import Api, Resource, fields, reqparse
@@ -13,11 +14,30 @@ app = Flask(__name__)
 MQTT_BROKER = os.environ.get("MQTT_BROKER", "mosquitto")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 
-mqtt_client = mqtt.Client()
+mqtt_client = mqtt.Client("wastebin-api")
+mqtt_client.clean_session = False
+
+topic_store = {}
+topic_lock = threading.Lock()
+
+def on_message(client, userdata, msg):
+    """Store every message received by the API client."""
+    with topic_lock:
+        topic_store[msg.topic] = {
+            "topic": msg.topic,
+            "payload": msg.payload.decode("utf-8", errors="replace"),
+            "qos": msg.qos,
+            "retain": msg.retain,
+            "timestamp": utc_now_iso()
+        }
+
+mqtt_client.on_message = on_message
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("[MQTT] Connected to broker successfully.")
+        client.subscribe("smartbin/#", qos=1)
+        print("[MQTT] Subscribed to smartbin/#")
     else:
         print(f"[MQTT] Connection failed with code {rc}")
 
@@ -190,6 +210,13 @@ sensor_model = api.model("Sensor", {
     "status": fields.String(),
 })
 
+publish_model = api.model("MQTTPublish", {
+    "topic": fields.String(required=True, description="MQTT topic to publish to"),
+    "payload": fields.String(required=True, description="Message payload"),
+    "qos": fields.Integer(description="Quality of Service (0, 1, or 2)", default=1),
+    "retain": fields.Boolean(description="Retain this message on the broker", default=False),
+})
+
 events_parser = reqparse.RequestParser()
 events_parser.add_argument("limit", type=int, default=50)
 
@@ -288,11 +315,58 @@ class SensorList(Resource):
         return list(sensors_registry.values()), 200
 
 
+@nmqtt.route("/publish")
+class MQTTPublish(Resource):
+    @nmqtt.expect(publish_model)
+    @nmqtt.response(200, "Message published")
+    @nmqtt.response(400, "Invalid request")
+    def post(self):
+        """Publish a message to an MQTT topic."""
+        data = api.payload or {}
+        
+        topic = data.get("topic")
+        payload = data.get("payload")
+        qos = data.get("qos", 1)
+        retain = data.get("retain", False)
+        
+        if not topic or not payload:
+            api.abort(400, "Both 'topic' and 'payload' are required")
+        
+        if qos not in [0, 1, 2]:
+            api.abort(400, "QoS must be 0, 1, or 2")
+        
+        result = mqtt_client.publish(topic, payload, qos=qos, retain=retain)
+        
+        return {
+            "status": "published",
+            "topic": topic,
+            "payload": payload,
+            "qos": qos,
+            "retain": retain,
+            "mqtt_rc": result.rc
+        }, 200
+
+
 @nmqtt.route("/topics")
 class MqttTopics(Resource):
     def get(self):
-        """List MQTT topics used by this system."""
-        return {"topics": ["events", "motion", "fill-level", "command"]}, 200
+        """List all known MQTT topics and their last received message."""
+        with topic_lock:
+            return {
+                "topic_count": len(topic_store),
+                "topics": list(topic_store.values())
+            }, 200
+
+
+@nmqtt.route("/topics/<path:topic>")
+class MQTTTopicDetail(Resource):
+    @nmqtt.response(404, "Topic not found or no message received yet")
+    def get(self, topic):
+        """Get the last received message for a specific MQTT topic."""
+        with topic_lock:
+            if topic not in topic_store:
+                api.abort(404, f"No message received on topic '{topic}'")
+            return topic_store[topic], 200
 
 
 # Εκτέλεση
