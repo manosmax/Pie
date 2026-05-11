@@ -89,7 +89,7 @@ flowchart TD
 
 **RQ2: Why do the event-listing endpoints use GET and not POST?**
 
-GET is semantically correct for read-only operations. `GET /bins/<bin_id>/events` only reads from `motion_events.jsonl` and does not modify any state. Using POST for a query would be semantically wrong and would prevent HTTP caching layers from working correctly.
+GET is semantically correct for read-only operations. `GET /bins/<bin_id>/events` only reads from `motion_events.jsonl` and does not modify any state. Using POST for a query would be semantically wrong. 
 
 **RQ3: Why does the "mark as emptied" endpoint use POST and not PUT? Think about idempotency.**
 
@@ -125,7 +125,7 @@ Example response:
 ```json
 [
   {
-    "event_time": "2025-05-10T14:32:01.123Z",
+    "event_time": "2026-05-10T14:32:01.123Z",
     "device_id": "urn:dev:team08:pir-01",
     "motion_state": "detected",
     "fill_level": 42,
@@ -133,7 +133,7 @@ Example response:
     "pipeline_latency_ms": 8.741
   },
   {
-    "event_time": "2025-05-10T14:31:45.007Z",
+    "event_time": "2026-05-10T14:31:45.007Z",
     "device_id": "urn:dev:team08:pir-01",
     "motion_state": "detected",
     "fill_level": 40,
@@ -144,11 +144,11 @@ Example response:
 ```
 
 **RQ7: How do the Flask-RESTx models (`api.model`) relate to the Swagger UI documentation? What happens in the UI when you add a new field to a model?**
-
+ANASTASIIIIIII😘😘😘
 Each `api.model(...)` call in `api.py` (e.g. `bin_model`, `event_model`, `sensor_model`) defines a named JSON schema. Flask-RESTx automatically converts these into OpenAPI schema objects and embeds them in the generated `/swagger.json` spec. Swagger UI reads that spec and renders each model as an example response body and a schema table under the relevant endpoint. When a new field is added to a model — for example adding `"emptied_count": fields.Integer(...)` to `bin_model` — Swagger UI immediately shows that field in the example and schema without any manual documentation work.
 
 **RQ8: Show a screenshot of your Swagger UI with endpoints visible.**
-
+ANASTASIIIIIII😘😘😘
 
 
 ---
@@ -156,7 +156,7 @@ Each `api.model(...)` call in `api.py` (e.g. `bin_model`, `event_model`, `sensor
 ## MQTT Endpoints
 
 **RQ9: Explain how the `POST /mqtt/publish` endpoint works. What does the API do when it receives a publish request?**
-
+KAI EDWWW👍
 In the current implementation `PUT /mqtt/publish` (note: the code uses PUT, not POST) returns a static confirmation `{"message": "Published to MQTT"}` with status 200. It is a stub — no actual MQTT client call is made inside the route. A full implementation would parse the JSON body (topic, payload, retain flag) and call `mqtt_client.publish(topic, payload, retain=retain)` on a shared Paho client instance that the API maintains, acting as an HTTP-to-MQTT bridge for clients that cannot speak MQTT natively.
 
 **RQ10: You published a motion event through the API using `POST /mqtt/publish`. Describe the full path that message takes, from the HTTP request to the consumer's JSONL file.**
