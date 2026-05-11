@@ -151,8 +151,7 @@ Example Response:
 Flask-RESTx models (lines 180-219) are Python class definitions that automatically generate OpenAPI schema documentation for Swagger UI. In Swagger UI the new field automatically appears in the Event schema definition,the field appears in the Try It Out response examples and API clients see the new field in the response schema immediately (without redeployment if doc refresh occurs).
 
 **RQ8: Show a screenshot of your Swagger UI with endpoints visible.**
-ANASTASIIIIIII😘😘😘
-
+![alt text](image-1.png)
 
 ---
 
