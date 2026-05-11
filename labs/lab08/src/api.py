@@ -257,6 +257,7 @@ class BinEmpty(Resource):
         })
 
         result = mqtt_client.publish(command_topic, command_payload, qos=1)
+        print(f"[API] Publishing to {command_topic}: {command_payload} (rc={result.rc})")
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             api.abort(503, f"Failed to publish MQTT command (rc={result.rc}). "
                           "Is the broker reachable?")

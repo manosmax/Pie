@@ -101,10 +101,10 @@ def producer_loop(
     args: argparse.Namespace,
     metrics: dict,
     stop_flag: dict,
+    state: dict,
 ) -> None:
     run_id = str(uuid.uuid4())
     seq = 0
-    item_count = 0
 
     while not stop_flag["stop"]:
         t = time.monotonic()
@@ -112,8 +112,8 @@ def producer_loop(
 
         for _ in interp.update(raw, t):
             seq += 1
-            item_count += 1
-            fill_level = min(int((item_count / BIN_CAPACITY) * 100), 100)
+            state["item_count"] += 1
+            fill_level = min(int((state["item_count"] / BIN_CAPACITY) * 100), 100)
 
             record = {
                 "@context": JSONLD_CONTEXT,
@@ -126,7 +126,7 @@ def producer_loop(
                 "seq": seq,
                 "run_id": run_id,
                 "mounted_on": f"urn:wastebin:{args.bin_id}",
-                "item_count": item_count,
+                "item_count": state["item_count"],
                 "fill_level": fill_level
             }
             try:
@@ -143,10 +143,12 @@ def publisher_loop(
     args: argparse.Namespace,
     metrics: dict,
     stop_flag: dict,
+    state: dict,
 ) -> None:
     topic, qos = args.topic, args.qos
     ha_pir_topic  = f"smartbin/{args.bin_id}/{args.sensor_id}/motion"
     ha_fill_topic = f"smartbin/{args.bin_id}/fill-level/state"
+    command_topic = f"smartbin/{args.bin_id}/command"
 
     client = mqtt.Client()
 
@@ -154,10 +156,23 @@ def publisher_loop(
         if rc == 0:
             print("[PUB] Connected to MQTT Broker")
             send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_fill_topic)
+            client.subscribe(command_topic, qos=qos)
+            print(f"[PUB] Subscribed to {command_topic}")
         else:
             print(f"[PUB] Connection failed with code {rc}")
 
+    def on_message(client, userdata, msg):
+        try:
+            payload = json.loads(msg.payload.decode())
+            if payload.get("action") == "emptied":
+                print(f"[PUB] Received emptied command: {payload}")
+                state["item_count"] = 0
+                print(f"[PUB] Reset item_count and fill_level to 0")
+        except json.JSONDecodeError:
+            print(f"[PUB] Failed to parse command message: {msg.payload}")
+
     client.on_connect = on_connect
+    client.on_message = on_message
     client.will_set(f"{topic}/status", "offline", qos=qos, retain=True)
     client.on_publish = lambda *_: metrics.__setitem__(
         "published", metrics["published"] + 1
@@ -202,15 +217,16 @@ def main() -> None:
 
     sampler = PirSampler(pin=args.pin)
     interp = PirInterpreter(cooldown_s=args.cooldown, min_high_s=args.min_high)
+    state = {"item_count": 0}
 
     producer_t = threading.Thread(
         target=producer_loop,
-        args=(event_q, sampler, interp, args, metrics, stop_flag),
+        args=(event_q, sampler, interp, args, metrics, stop_flag, state),
         daemon=True,
     )
     publisher_t = threading.Thread(
         target=publisher_loop,
-        args=(event_q, args, metrics, stop_flag),
+        args=(event_q, args, metrics, stop_flag, state),
         daemon=True,
     )
 
