@@ -5,27 +5,42 @@ services:
       - "1883:1883"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   producer:
     build: .
-    # Pass the shared volume path
-    command: python producer.py --verbose --host mosquitto --bin-id "urn:wastebin:bin-01"
-    volumes:
-      - ./data:/app/data
+    command: python producer.py --verbose --host mosquitto
     devices:
       - /dev/gpiochip0:/dev/gpiochip0
+    volumes:
+      - ./data:/app/data        # ← persists sensor_state.json across restarts
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
+
+  consumer:
+    build: .
+    command: python consumer.py --verbose --host mosquitto --out /app/data/motion_events.jsonl
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      mosquitto:
+        condition: service_healthy
 
   api:
     build: .
-    # Crucial: Tell the API where to find the broker and the shared data
     command: python api.py
-    environment:
-      - MQTT_HOST=mosquitto
     ports:
       - "5000:5000"
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data        # ← CRITICAL: lets api read events and write emptied_records
+    environment:
+      - MQTT_BROKER=mosquitto   # ← tells api.py which broker to reach
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
+    # removed: devices — api.py doesn't use GPIO

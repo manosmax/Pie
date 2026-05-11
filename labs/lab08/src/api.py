@@ -11,9 +11,11 @@ from flask_restx import Api, Resource, fields, reqparse
 
 app = Flask(__name__)
 
-# MQTT Settings
-MQTT_BROKER = "localhost"
-MQTT_PORT = 1883
+# FIX: Use "mosquitto" as the broker hostname so the API container reaches
+# the broker by its Docker Compose service name, not localhost (which would
+# point to the API container itself).
+MQTT_BROKER = os.environ.get("MQTT_BROKER", "mosquitto")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 
 mqtt_client = mqtt.Client()
 
@@ -23,9 +25,6 @@ def on_connect(client, userdata, flags, rc):
     else:
         print(f"[MQTT] Connection failed with code {rc}")
 
-# FIX 1: Add on_disconnect handler so the background loop reconnects automatically.
-# Without this, a transient broker restart would leave the API unable to publish
-# any "emptied" commands for the rest of the process lifetime.
 def on_disconnect(client, userdata, rc):
     if rc != 0:
         print(f"[MQTT] Unexpected disconnect (rc={rc}). Will auto-reconnect...")
@@ -35,8 +34,6 @@ mqtt_client.on_disconnect = on_disconnect
 
 try:
     mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    # FIX 2: Use loop_start() (already present) — but pair it with reconnect_delay_set
-    # so paho retries automatically after a disconnect.
     mqtt_client.reconnect_delay_set(min_delay=1, max_delay=30)
     mqtt_client.loop_start()
 except Exception as e:
@@ -56,7 +53,6 @@ nmqtt   = api.namespace("mqtt",    description="MQTT operations")
 
 DATA_DIR      = os.path.join(os.path.dirname(__file__), "data")
 EVENTS_FILE   = os.path.join(DATA_DIR, "motion_events.jsonl")
-# FIX 3: Persist emptied records so they survive API restarts and are queryable.
 EMPTIED_FILE  = os.path.join(DATA_DIR, "emptied_records.jsonl")
 
 # ---------------------------------------------------------------------------
@@ -115,8 +111,7 @@ def save_emptied_record(record: dict) -> None:
 def _build_registries() -> tuple[dict, dict]:
     bins_reg, sensors_reg = {}, {}
     MODELS_DIR = os.path.join((os.path.dirname(__file__)), "models")
-    
-    # Paths to JSON-LD models
+
     wastebin_path = os.path.join(MODELS_DIR, "wastebin.jsonld")
     sensor_path   = os.path.join(MODELS_DIR, "sensor.jsonld")
     env_path      = os.path.join(MODELS_DIR, "environment.jsonld")
@@ -192,6 +187,10 @@ emptied_model = api.model("EmptiedRecord", {
     "emptied_by": fields.String(),
 })
 
+emptied_input_model = api.model("EmptiedInput", {
+    "emptied_by": fields.String(description="Who emptied the bin (optional)", default="operator"),
+})
+
 sensor_model = api.model("Sensor", {
     "id": fields.String(required=True),
     "type": fields.String(),
@@ -213,89 +212,93 @@ emptied_parser.add_argument("limit", type=int, default=20)
 class BinList(Resource):
     @ns.marshal_list_with(bin_model)
     def get(self):
+        """List all registered bins."""
         return list(bins_registry.values()), 200
+
 
 @ns.route("/<string:bin_id>/events")
 class BinEvents(Resource):
     @ns.expect(events_parser)
     @ns.marshal_list_with(event_model)
     def get(self, bin_id):
+        """Get recent motion events for a bin."""
         if not find_bin(bin_id):
             api.abort(404, f"Bin {bin_id} not found")
         args = events_parser.parse_args()
         sensor_id = get_sensor_for_bin(bin_id)
         return load_events(EVENTS_FILE, limit=args["limit"], sensor_id=sensor_id), 200
 
-@ns.route("/<string:bin_id>/emptied")
-class BinEmptied(Resource):
+
+@ns.route("/<string:bin_id>/empty")
+class BinEmpty(Resource):
+    @ns.expect(emptied_input_model)
+    @ns.marshal_with(emptied_model, code=200)
+    def post(self, bin_id):
+        """
+        Mark a bin as emptied.
+
+        Publishes an MQTT command to the producer so it resets the fill level
+        and item count to zero, then persists the emptied record locally.
+        """
+        if not find_bin(bin_id):
+            api.abort(404, f"Bin {bin_id} not found")
+
+        payload = api.payload or {}
+        emptied_by = payload.get("emptied_by", "operator")
+        emptied_at = utc_now_iso()
+
+        # Build the MQTT command — the producer subscribes to this topic and
+        # resets its state when it receives action="emptied".
+        command_topic = f"smartbin/{bin_id}/command"
+        command_payload = json.dumps({
+            "action": "emptied",
+            "emptied_at": emptied_at,
+            "emptied_by": emptied_by,
+        })
+
+        result = mqtt_client.publish(command_topic, command_payload, qos=1)
+        if result.rc != mqtt.MQTT_ERR_SUCCESS:
+            api.abort(503, f"Failed to publish MQTT command (rc={result.rc}). "
+                          "Is the broker reachable?")
+
+        # Persist locally so the record survives API restarts.
+        record = {
+            "bin_id": bin_id,
+            "emptied_at": emptied_at,
+            "emptied_by": emptied_by,
+        }
+        save_emptied_record(record)
+
+        print(f"[EMPTY] Sent emptied command for bin {bin_id} at {emptied_at}")
+        return record, 200
+
+
+@ns.route("/<string:bin_id>/emptied-history")
+class BinEmptiedHistory(Resource):
     @ns.expect(emptied_parser)
     @ns.marshal_list_with(emptied_model)
     def get(self, bin_id):
-        """Retrieve the emptied history for a bin."""
+        """Get the emptied history for a bin."""
         if not find_bin(bin_id):
             api.abort(404, f"Bin {bin_id} not found")
         args = emptied_parser.parse_args()
         return load_emptied_records(bin_id, limit=args["limit"]), 200
 
-    @ns.expect(emptied_model)
-    @ns.marshal_with(emptied_model, code=201)
-    def post(self, bin_id):
-        """Record that a bin was emptied and notify the Edge device via MQTT."""
-        if not find_bin(bin_id):
-            api.abort(404, f"Bin {bin_id} not found")
-
-        data = api.payload or {}
-        emptied_time = data.get("emptied_at") or utc_now_iso()
-        
-        record = {
-            "bin_id": bin_id,
-            "emptied_at": emptied_time,
-            "emptied_by": data.get("emptied_by") or "unknown",
-        }
-
-        # FIX 4: Persist the emptied record before publishing so the data is
-        # never lost even if the MQTT publish fails.
-        save_emptied_record(record)
-
-        # --- MQTT Integration ---
-        command_payload = {
-            "action": "emptied",
-            "bin_id": bin_id,
-            "emptied_at": emptied_time
-        }
-        
-        cmd_topic = f"smartbin/{bin_id}/command"
-
-        # FIX 5: Check whether the client is actually connected before publishing.
-        # If not, attempt a reconnect rather than silently doing nothing.
-        if not mqtt_client.is_connected():
-            print("[API] MQTT client not connected — attempting reconnect...")
-            try:
-                mqtt_client.reconnect()
-            except Exception as e:
-                print(f"[API] Reconnect failed: {e}")
-
-        result = mqtt_client.publish(cmd_topic, json.dumps(command_payload), qos=1)
-        
-        if result.rc == mqtt.MQTT_ERR_SUCCESS:
-            print(f"[API] Command sent to {cmd_topic}")
-        else:
-            # Record is already saved; log the failure but still return 201.
-            print(f"[API] MQTT publish failed (rc={result.rc}). "
-                  "Edge device will pick up state on next connection.")
-
-        return record, 201
 
 @nsensor.route("/")
 class SensorList(Resource):
     @nsensor.marshal_list_with(sensor_model)
     def get(self):
+        """List all registered sensors."""
         return list(sensors_registry.values()), 200
+
 
 @nmqtt.route("/topics")
 class MqttTopics(Resource):
     def get(self):
+        """List MQTT topics used by this system."""
         return {"topics": ["events", "motion", "fill-level", "command"]}, 200
+
 
 # ---------------------------------------------------------------------------
 # Execution
