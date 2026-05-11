@@ -48,9 +48,11 @@ mqtt_client.on_connect = on_connect
 mqtt_client.on_disconnect = on_disconnect
 
 try:
-    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    mqtt_client.reconnect_delay_set(min_delay=1, max_delay=30)
-    mqtt_client.loop_start()
+    # Only initialize MQTT in the main process (not in werkzeug reloader child process)
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("WERKZEUG_SERVER_FD") is None:
+        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        mqtt_client.reconnect_delay_set(min_delay=1, max_delay=30)
+        mqtt_client.loop_start()
 except Exception as e:
     print(f"[MQTT] Initial connection error: {e}")
 
@@ -403,4 +405,4 @@ class MQTTTopicDetail(Resource):
 # Εκτέλεση
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)
