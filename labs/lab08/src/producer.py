@@ -4,49 +4,17 @@ import logging
 import threading
 import time
 import uuid
-import os
 from datetime import datetime, timezone
 from queue import Empty, Full, Queue
 
 import paho.mqtt.client as mqtt
 from pirlib import PirInterpreter, PirSampler
 
-# --- Configuration & Persistence ---
-STATE_FILE = "/app/data/sensor_state.json"
-BIN_CAPACITY = 50
-state_lock = threading.Lock()
-
 logger = logging.getLogger(__name__)
 
-JSONLD_CONTEXT = {
-    "@vocab":   "https://schema.org/",
-    "sosa":     "http://www.w3.org/ns/sosa/",
-    "ssn":      "http://www.w3.org/ns/ssn/",
-    "xsd":      "http://www.w3.org/2001/XMLSchema#",
-    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#",
-    "event_time":   {"@id": "sosa:resultTime",    "@type": "xsd:dateTime"},
-    "fill_level":   {"@id": "pipeline:fillLevel", "@type": "xsd:integer"},
-    "last_emptied": {"@id": "pipeline:lastEmptiedAt", "@type": "xsd:dateTime"}
-}
+def send_discovery(client, bin_id, sensor_id, pir_topic, fill_topic):
+    """Sends the MQTT Discovery JSON to Home Assistant for Motion and Fill Level sensors."""
 
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-def save_state(state: dict) -> None:
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f)
-
-def load_state() -> dict:
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to load state: {e}")
-    return {"item_count": 0, "fill_level": 0, "last_emptied": "Never"}
-
-def send_discovery(client: mqtt.Client, bin_id: str, sensor_id: str, topics: dict) -> None:
     device_info = {
         "identifiers": [bin_id],
         "name": f"Smart Waste Bin {bin_id}",
@@ -54,226 +22,226 @@ def send_discovery(client: mqtt.Client, bin_id: str, sensor_id: str, topics: dic
         "manufacturer": "Team 08"
     }
 
-    configs = [
-        ("binary_sensor", "motion", {
-            "device_class": "motion",
-            "state_topic": topics["pir"],
-            "payload_on": "detected",
-            "payload_off": "clear",
-            "off_delay": 6,
-        }),
-        ("sensor", "fill", {
-            "unit_of_measurement": "%",
-            "state_topic": topics["fill"],
-            "state_class": "measurement",
-            "icon": "mdi:delete-variant",
-        }),
-        ("sensor", "emptied", {
-            "device_class": "timestamp",
-            "state_topic": topics["emptied"],
-            "icon": "mdi:clock-check-outline",
-        }),
-    ]
+    pir_config = {
+        "name": f"Waste Bin {bin_id} Motion",
+        "state_topic": pir_topic,
+        "payload_on": "detected",
+        "payload_off": "clear",
+        "device_class": "motion",
+        "unique_id": f"{bin_id}_{sensor_id}_motion",
+        "off_delay": 6,
+        "device": device_info
+    }
 
-    for component, suffix, config in configs:
-        config.update({
-            "name": f"Waste Bin {bin_id} {suffix.capitalize()}",
-            "unique_id": f"{bin_id}_{suffix}",
-            "device": device_info,
-        })
-        client.publish(
-            f"homeassistant/{component}/{bin_id}_{suffix}/config",
-            json.dumps(config),
-            qos=1,
-            retain=True,
-        )
+    fill_config = {
+        "name": f"Waste Bin {bin_id} Fill Level",
+        "state_topic": fill_topic,
+        "unit_of_measurement": "%",
+        "icon": "mdi:delete-variant",
+        "state_class": "measurement",
+        "unique_id": f"{bin_id}_fill_level",
+        "device": device_info
+    }
 
-# ---------------------------------------------------------------------------
-# Producer loop — reads PIR sensor, enqueues events
-# ---------------------------------------------------------------------------
+    client.publish(f"homeassistant/binary_sensor/{bin_id}_{sensor_id}/config", json.dumps(pir_config), qos=1, retain=True)
+    client.publish(f"homeassistant/sensor/{bin_id}_fill/config", json.dumps(fill_config), qos=1, retain=True)
+
+    print("[HA] Discovery sent for Motion and Fill Level entities.")
+
+def utc_now_iso() -> str:
+    return (
+        datetime.now(timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="PIR producer — reads sensor, publishes to MQTT")
+    p.add_argument("--device-id",       default="urn:dev:team08:pir-01")
+    p.add_argument("--bin-id",          default="bin-01")
+    p.add_argument("--sensor-id",       default="pir-01")
+    p.add_argument("--pin",             type=int,   default=17)
+    p.add_argument("--sample-interval", type=float, default=0.1)
+    p.add_argument("--cooldown",        type=float, default=5.0)
+    p.add_argument("--min-high",        type=float, default=0.2)
+    p.add_argument("--queue-size",      type=int,   default=100)
+    p.add_argument("--duration",        type=float, default=600.0)
+    p.add_argument("--host",            default="localhost")
+    p.add_argument("--port",            type=int,   default=1883)
+    p.add_argument("--qos",             type=int,   default=1)
+    p.add_argument("--topic",           default="smartbin/bin-01/pir-01/events")
+    p.add_argument("--verbose",         action="store_true")
+    return p.parse_args()
+
+JSONLD_CONTEXT = {
+    "@vocab":   "https://schema.org/",
+    "sosa":     "http://www.w3.org/ns/sosa/",
+    "ssn":      "http://www.w3.org/ns/ssn/",
+    "xsd":      "http://www.w3.org/2001/XMLSchema#",
+    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#",
+    "event_time":          {"@id": "sosa:resultTime",         "@type": "xsd:dateTime"},
+    "ingest_time":         {"@id": "pipeline:ingestTime",     "@type": "xsd:dateTime"},
+    "device_id":           {"@id": "sosa:madeBySensor",       "@type": "@id"},
+    "mounted_on":          {"@id": "sosa:isHostedBy",         "@type": "@id"},
+    "event_type":          {"@id": "sosa:observedProperty",   "@type": "@id"},
+    "motion_state":        {"@id": "sosa:hasSimpleResult",    "@type": "xsd:string"},
+    "seq":                 {"@id": "pipeline:sequenceNumber", "@type": "xsd:integer"},
+    "run_id":              {"@id": "pipeline:runId",          "@type": "xsd:string"},
+    "pipeline_latency_ms": {"@id": "pipeline:latencyMs",      "@type": "xsd:decimal"},
+    "item_count":          {"@id": "pipeline:itemCount",      "@type": "xsd:integer"},
+    "fill_level":          {"@id": "pipeline:fillLevel",      "@type": "xsd:integer"}
+}
+
+BIN_CAPACITY = 50
 
 def producer_loop(
     event_q: Queue,
     sampler: PirSampler,
     interp: PirInterpreter,
     args: argparse.Namespace,
-    state: dict,
+    metrics: dict,
     stop_flag: dict,
 ) -> None:
     run_id = str(uuid.uuid4())
     seq = 0
+    item_count = 0
+
     while not stop_flag["stop"]:
         t = time.monotonic()
         raw = sampler.read()
+
         for _ in interp.update(raw, t):
             seq += 1
-            with state_lock:
-                state["item_count"] += 1
-                state["fill_level"] = min(
-                    int((state["item_count"] / BIN_CAPACITY) * 100), 100
-                )
-                save_state(state)
+            item_count += 1
+            fill_level = min(int((item_count / BIN_CAPACITY) * 100), 100)
 
-                record = {
-                    "@context": JSONLD_CONTEXT,
-                    "@id": f"urn:event:{run_id}:{seq}",
-                    "@type": "sosa:Observation",
-                    "event_time": utc_now_iso(),
-                    "device_id": args.device_id,
-                    "fill_level": state["fill_level"],
-                    "item_count": state["item_count"],
-                    "last_emptied": state["last_emptied"],
-                }
+            record = {
+                "@context": JSONLD_CONTEXT,
+                "@id": f"urn:event:{run_id}:{seq}",
+                "@type": "sosa:Observation",
+                "event_time": utc_now_iso(),
+                "device_id": args.device_id,
+                "event_type": "urn:prop:team08:motion",
+                "motion_state": "detected",
+                "seq": seq,
+                "run_id": run_id,
+                "mounted_on": f"urn:wastebin:{args.bin_id}",
+                "item_count": item_count,
+                "fill_level": fill_level
+            }
             try:
                 event_q.put_nowait(record)
+                metrics["produced"] += 1
             except Full:
-                logger.warning("Queue full — dropping event")
-        time.sleep(args.sample_interval)
+                metrics["dropped"] += 1
+                logger.warning("Queue full — event dropped (seq=%d)", seq)
 
-# ---------------------------------------------------------------------------
-# Publisher loop — sends events to MQTT, handles "emptied" commands
-# ---------------------------------------------------------------------------
+        time.sleep(args.sample_interval)
 
 def publisher_loop(
     event_q: Queue,
     args: argparse.Namespace,
-    state: dict,
+    metrics: dict,
     stop_flag: dict,
 ) -> None:
-    topics = {
-        "pir":     f"smartbin/{args.bin_id}/{args.sensor_id}/motion",
-        "fill":    f"smartbin/{args.bin_id}/fill-level/state",
-        "emptied": f"smartbin/{args.bin_id}/last-emptied/state",
-        "cmd":     f"smartbin/{args.bin_id}/command",
-    }
+    topic, qos = args.topic, args.qos
+    ha_pir_topic  = f"smartbin/{args.bin_id}/{args.sensor_id}/motion"
+    ha_fill_topic = f"smartbin/{args.bin_id}/fill-level/state"
 
     client = mqtt.Client()
 
-    def on_connect(c: mqtt.Client, userdata, flags, rc: int) -> None:
+    def on_connect(client, userdata, flags, rc):
         if rc == 0:
-            print(f"[MQTT publisher] Connected (bin={args.bin_id})")
-            # Subscribe to the command topic so we receive empty-bin requests.
-            c.subscribe(topics["cmd"], qos=1)
-            send_discovery(c, args.bin_id, args.sensor_id, topics)
+            print("[PUB] Connected to MQTT Broker")
+            send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_fill_topic)
         else:
-            logger.error(f"[MQTT publisher] Connection failed rc={rc}")
-
-    def on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
-        """Handle commands published by the API (e.g. action=emptied)."""
-        try:
-            payload = json.loads(msg.payload.decode())
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            logger.error(f"on_message: bad payload: {exc}")
-            return
-
-        action = payload.get("action")
-
-        if action == "emptied":
-            emptied_at = payload.get("emptied_at") or utc_now_iso()
-            emptied_by = payload.get("emptied_by", "unknown")
-
-            with state_lock:
-                # FIX: only reset if there is something to reset, avoiding
-                # spurious MQTT retained-message resets on reconnect.
-                if state["fill_level"] == 0 and state["item_count"] == 0:
-                    print(f"[CMD] Bin {args.bin_id} already empty — ignoring duplicate command.")
-                    return
-
-                state["item_count"] = 0
-                state["fill_level"] = 0
-                state["last_emptied"] = emptied_at
-                save_state(state)
-
-            # Immediately publish the updated state so dashboards reflect 0 %.
-            client.publish(topics["fill"],    "0",        retain=True)
-            client.publish(topics["emptied"], emptied_at, retain=True)
-
-            print(
-                f"[CMD] Bin {args.bin_id} emptied by '{emptied_by}' at {emptied_at}. "
-                "Fill level reset to 0."
-            )
-        else:
-            logger.warning(f"on_message: unknown action '{action}'")
+            print(f"[PUB] Connection failed with code {rc}")
 
     client.on_connect = on_connect
-    client.on_message = on_message
+    client.will_set(f"{topic}/status", "offline", qos=qos, retain=True)
+    client.on_publish = lambda *_: metrics.__setitem__(
+        "published", metrics["published"] + 1
+    )
 
-    # Reconnect automatically if the broker restarts.
-    client.reconnect_delay_set(min_delay=1, max_delay=30)
     client.connect(args.host, args.port, keepalive=60)
     client.loop_start()
+    client.publish(f"{topic}/status", "online", qos=qos, retain=True)
 
-    # Main publish loop — drains the event queue and forwards to MQTT.
     while not stop_flag["stop"] or not event_q.empty():
         try:
             record = event_q.get(timeout=0.5)
         except Empty:
             continue
 
-        client.publish(args.topic, json.dumps(record))
-        client.publish(topics["pir"],  "detected")
-        client.publish(topics["fill"], str(record["fill_level"]))
+        result = client.publish(topic, json.dumps(record, default=str), qos=qos)
+
+        client.publish(ha_pir_topic, "detected", qos=qos)
+
+        fill_level = record.get("fill_level", 0)
+        client.publish(ha_fill_topic, str(fill_level), qos=qos)
+
+        if result.rc != mqtt.MQTT_ERR_SUCCESS:
+            metrics["errors"] += 1
+            logger.warning("Publish failed (rc=%d)", result.rc)
+        elif args.verbose:
+            print(f"[PUB] seq={record.get('seq')} → fill={fill_level}%")
+
         event_q.task_done()
 
+    client.publish(f"{topic}/status", "offline", qos=qos, retain=True).wait_for_publish(3.0)
     client.loop_stop()
     client.disconnect()
 
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
-
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Smart Wastebin PIR producer")
-    parser.add_argument("--bin-id",          default="bin-01")
-    parser.add_argument("--device-id",       default="urn:dev:team08:pir-01")
-    parser.add_argument("--sensor-id",       default="pir-01")
-    parser.add_argument("--host",            default="mosquitto")
-    parser.add_argument("--port",            type=int,   default=1883)
-    parser.add_argument("--pin",             type=int,   default=17)
-    parser.add_argument("--sample-interval", type=float, default=0.1)
-    parser.add_argument("--cooldown",        type=float, default=5.0)
-    parser.add_argument("--min-high",        type=float, default=0.2)
-    parser.add_argument("--topic",           default="smartbin/events")
-    parser.add_argument("--verbose",         action="store_true")
-    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO)
+    args = parse_args()
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
-
-    state     = load_state()
-    event_q   = Queue(maxsize=100)
+    event_q: Queue = Queue(maxsize=args.queue_size)
+    metrics = {"produced": 0, "published": 0, "dropped": 0, "errors": 0}
     stop_flag = {"stop": False}
 
     sampler = PirSampler(pin=args.pin)
-    interp  = PirInterpreter(cooldown_s=args.cooldown, min_high_s=args.min_high)
+    interp = PirInterpreter(cooldown_s=args.cooldown, min_high_s=args.min_high)
 
-    t_producer  = threading.Thread(
+    producer_t = threading.Thread(
         target=producer_loop,
-        args=(event_q, sampler, interp, args, state, stop_flag),
+        args=(event_q, sampler, interp, args, metrics, stop_flag),
         daemon=True,
     )
-    t_publisher = threading.Thread(
+    publisher_t = threading.Thread(
         target=publisher_loop,
-        args=(event_q, args, state, stop_flag),
+        args=(event_q, args, metrics, stop_flag),
         daemon=True,
     )
 
-    t_producer.start()
-    t_publisher.start()
+    print(f"[producer] Starting — bin={args.bin_id} sensor={args.sensor_id} duration={args.duration}s")
+    producer_t.start()
+    publisher_t.start()
+
+    start_t = time.time()
 
     try:
-        while True:
-            time.sleep(1)
+        while (time.time() - start_t) < args.duration:
+            if args.verbose:
+                print(
+                    f"[status] produced={metrics['produced']} "
+                    f"published={metrics['published']} "
+                    f"dropped={metrics['dropped']} "
+                    f"queue={event_q.qsize()}"
+                )
+            time.sleep(2.0)
     except KeyboardInterrupt:
-        print("\n[MAIN] Shutting down…")
+        print("\n[producer] Ctrl-C — stopping...")
+    finally:
         stop_flag["stop"] = True
+        producer_t.join()
+        publisher_t.join()
         sampler.cleanup()
-        t_producer.join(timeout=5)
-        t_publisher.join(timeout=5)
 
+    print(
+        f"[producer] Done. produced={metrics['produced']} "
+        f"published={metrics['published']} dropped={metrics['dropped']}"
+    )
 
 if __name__ == "__main__":
     main()
