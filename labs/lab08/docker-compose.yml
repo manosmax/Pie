@@ -8,26 +8,24 @@ services:
 
   producer:
     build: .
-    command: python producer.py --verbose --host mosquitto
+    # Pass the shared volume path
+    command: python producer.py --verbose --host mosquitto --bin-id "urn:wastebin:bin-01"
+    volumes:
+      - ./data:/app/data
     devices:
       - /dev/gpiochip0:/dev/gpiochip0
     depends_on:
       - mosquitto
 
-  consumer:
-    build: .
-    command: python consumer.py --verbose --host mosquitto --out /app/data/motion_events.jsonl
-    volumes:
-      - ./data:/app/data
-    depends_on:
-      - mosquitto
-   
   api:
     build: .
-    command: python api.py 
+    # Crucial: Tell the API where to find the broker and the shared data
+    command: python api.py
+    environment:
+      - MQTT_HOST=mosquitto
     ports:
-      - "5000:5000"  # Map host port 5000 to container port 5000
-    devices:
-      - /dev/gpiochip0:/dev/gpiochip0
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
     depends_on:
       - mosquitto
