@@ -168,7 +168,9 @@ def publisher_loop(
             if payload.get("action") == "emptied":
                 print(f"[PUB] Received emptied command: {payload}")
                 state["item_count"] = 0
-                print(f"[PUB] Reset item_count and fill_level to 0")
+                # Publish reset fill_level immediately to Home Assistant
+                client.publish(ha_fill_topic, "0", qos=qos)
+                print(f"[PUB] Reset item_count and fill_level to 0, published to {ha_fill_topic}")
         except json.JSONDecodeError:
             print(f"[PUB] Failed to parse command message: {msg.payload}")
 
