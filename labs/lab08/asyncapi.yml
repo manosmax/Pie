@@ -146,6 +146,23 @@ channels:
       binCommand:
         $ref: '#/components/messages/BinCommand'
 
+  # =========================================================
+  # BIN STATUS
+  # =========================================================
+  binStatus:
+    address: smartbin/{bin_id}/status
+    description: |
+      Retained status messages published by the API
+      when bin state changes (e.g., emptied).
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+    messages:
+      binStatus:
+        $ref: '#/components/messages/BinStatus'
+
 # ===========================================================
 # OPERATIONS
 # ===========================================================
@@ -230,6 +247,17 @@ operations:
     description: |
       Sent when the API receives an empty-bin request.
       Commands the producer to reset fill level and item count.
+
+  publishBinStatus:
+    action: send
+    channel:
+      $ref: '#/channels/binStatus'
+
+    summary: API publishes bin status updates
+
+    description: |
+      Retained status message published when bin state changes,
+      such as when a bin is marked as emptied.
 
   # ---------------------------------------------------------
   # CONSUMER RECEIVE OPERATIONS
@@ -524,3 +552,30 @@ components:
           emptied_by:
             type: string
             description: Who initiated the emptying
+
+    # =======================================================
+    # BIN STATUS
+    # =======================================================
+    BinStatus:
+      name: BinStatus
+      contentType: application/json
+
+      payload:
+        type: object
+
+        required:
+          - state
+          - emptied_at
+
+        properties:
+
+          state:
+            type: string
+            enum:
+              - emptied
+            description: Current bin state
+
+          emptied_at:
+            type: string
+            format: date-time
+            description: ISO 8601 UTC timestamp of last emptying

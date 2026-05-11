@@ -233,6 +233,18 @@ class BinList(Resource):
         return list(bins_registry.values()), 200
 
 
+@ns.route("/<string:bin_id>")
+class BinDetail(Resource):
+    @ns.marshal_with(bin_model)
+    @ns.response(404, "Bin not found")
+    def get(self, bin_id):
+        """Get details for a specific bin."""
+        bin_data = find_bin(bin_id)
+        if not bin_data:
+            api.abort(404, f"Bin {bin_id} not found")
+        return bin_data, 200
+
+
 @ns.route("/<string:bin_id>/events")
 class BinEvents(Resource):
     @ns.expect(events_parser)
@@ -291,6 +303,14 @@ class BinEmpty(Resource):
         }
         save_emptied_record(record)
 
+        # Δημοσίευση ενημέρωσης κατάστασης στο MQTT για Home Assistant
+        status_topic = f"smartbin/{bin_id}/status"
+        status_payload = json.dumps({
+            "state": "emptied",
+            "emptied_at": emptied_at,
+        })
+        mqtt_client.publish(status_topic, status_payload, qos=1, retain=True)
+
         print(f"[EMPTY] Sent emptied command for bin {bin_id} at {emptied_at}")
         return record, 200
 
@@ -313,6 +333,18 @@ class SensorList(Resource):
     def get(self):
         """List all registered sensors."""
         return list(sensors_registry.values()), 200
+
+
+@nsensor.route("/<string:sensor_id>")
+class SensorDetail(Resource):
+    @nsensor.marshal_with(sensor_model)
+    @nsensor.response(404, "Sensor not found")
+    def get(self, sensor_id):
+        """Get details for a specific sensor."""
+        sensor_data = find_sensor(sensor_id)
+        if not sensor_data:
+            api.abort(404, f"Sensor {sensor_id} not found")
+        return sensor_data, 200
 
 
 @nmqtt.route("/publish")
