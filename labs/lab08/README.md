@@ -196,12 +196,15 @@ OpenAPI documents synchronous HTTP APIs (request → response). AsyncAPI documen
 
 **RQ14: How many channels did you document in your AsyncAPI spec? For each, state who is the publisher and who is the subscriber.**
 
-We documented four channels:
+| Channel               | Topic Pattern                                             | Publisher                                             | Subscriber                            |
+| --------------------- | --------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------- |
+| **motionEvents**      | `smartbin/{bin_id}/{sensor_id}/events`                    | Smart Wastebin Producer (Raspberry Pi sensor service) | Consumer pipeline / telemetry logger  |
+| **eventsStatus**      | `smartbin/{bin_id}/{sensor_id}/events/status`             | Smart Wastebin Producer                               | Home Assistant and monitoring clients |
+| **motionState**       | `smartbin/{bin_id}/{sensor_id}/motion`                    | Smart Wastebin Producer                               | Home Assistant                        |
+| **fillLevelState**    | `smartbin/{bin_id}/fill-level/state`                      | Smart Wastebin Producer                               | Home Assistant                        |
+| **haDiscoveryMotion** | `homeassistant/binary_sensor/{bin_id}_{sensor_id}/config` | Smart Wastebin Producer                               | Home Assistant MQTT Discovery service |
+| **haDiscoveryFill**   | `homeassistant/sensor/{bin_id}_fill/config`               | Smart Wastebin Producer                               | Home Assistant MQTT Discovery service |
 
-1. `smartbin/{binId}/{sensorId}/events` — Publisher: `producer.py` (`publisher_loop`); Subscriber: `consumer.py`.
-2. `smartbin/{binId}/{sensorId}/motion` — Publisher: `producer.py` (HA state topic via `ha_pir_topic`); Subscriber: Home Assistant.
-3. `smartbin/{binId}/fill-level/state` — Publisher: `producer.py` (HA state topic via `ha_fill_topic`); Subscriber: Home Assistant.
-4. `homeassistant/binary_sensor/{binId}_{sensorId}/config` — Publisher: `producer.py` (`send_discovery`); Subscriber: Home Assistant (MQTT Discovery).
 
 **RQ15: Show a screenshot of your AsyncAPI spec rendered in Swagger Editor or AsyncAPI Studio.**
 
