@@ -45,7 +45,28 @@ curl "http://localhost:5000/bins/urn:wastebin:bin-01/events?limit=10"
 # Check known MQTT topics
 curl http://localhost:5000/mqtt/topics
 ```
+### AsyncAPI Architecture
 
+```mermaid
+flowchart TD
+
+    A[PIR Sensor]
+    B[Producer]
+    C[MQTT Broker<br/>Mosquitto]
+
+    D[Consumer]
+    E[Home Assistant]
+    F[MQTT Clients]
+
+    A --> B
+    B -->|publishes| C
+
+    C -->|subscribes| D
+    C -->|subscribes| E
+    C -->|subscribe| F
+
+```
+ 
 # Part B
 
 ---
