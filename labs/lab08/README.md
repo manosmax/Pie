@@ -6,18 +6,33 @@
 
 ## Part A — Setup & Run
 
-### Wiring (Raspberry Pi)
+### Directory Structure
 
-| Sensor Pin | Pi Physical Pin | BCM Name |
-|------------|-----------------|----------|
-| `VCC`      | 2               | 5V       |
-| `GND`      | 6               | GND      |
-| `OUT`      | 11              | GPIO17   |
+```
+lab08/
+├── README.md
+├── requirements.txt
+├── api.py
+├── asyncapi.yaml
+├── producer.py
+├── consumer.py
+└── pirlib/
+    ├── __init__.py
+    ├── sampler.py
+    └── interpreter.py
+```
 
-### Build
+### Install Dependencies
 
 ```bash
-docker compose build
+pip install -r requirements.txt
+```
+
+**requirements.txt:**
+```
+flask
+flask-restx
+paho-mqtt
 ```
 
 ### Run
@@ -27,212 +42,255 @@ docker compose build
 docker compose up
 ```
 
-**2. First-time Home Assistant setup:**
+**2. Start the consumer** (writes events to JSONL):
 ```bash
-docker run -d \
-  --name homeassistant \
-  --restart unless-stopped \
-  -v ~/homeassistant/config:/config \
-  -v /run/dbus:/run/dbus:ro \
-  --network host \
-  ghcr.io/home-assistant/home-assistant:stable
+python consumer.py --out data/motion_events.jsonl --verbose
 ```
 
-**3. Subsequent starts:**
+**3. Start the producer** (reads PIR sensor, publishes to MQTT):
 ```bash
-docker start homeassistant
+python producer.py --bin-id bin-01 --sensor-id pir-01 --verbose
 ```
+
+**4. Start the REST API:**
+```bash
+python api.py
+```
+
+Open your browser and go to `http://<your-pi-ip>:5000` to access the Swagger UI.
+
+### Verify
+
+```bash
+# List all bins
+curl http://localhost:5000/bins/
+
+# Get motion events (latest 10)
+curl "http://localhost:5000/bins/urn:wastebin:bin-01/events?limit=10"
+
+# Check known MQTT topics
+curl http://localhost:5000/mqtt/topics
+```
+
+# Part B
 
 ---
 
-## Home Assistant Basics
+## API Design
 
-**RQ1: What is Home Assistant and what problem does it solve? Why use it instead of building a custom dashboard?**
+**RQ1: Write down your complete API design, every endpoint, its HTTP method, the URI, what parameters it accepts, and what it returns. Present this as a table.**
 
-Home Assistant is an open-source home automation platform that allows the developers of a project to easily make an informational dashboard for non-technical people to view, or for people who don't have access to the logs. It includes, device management, dashboards, automations and history. We chose to use Home Assistant as an easier and quicker alternative instead of building it from scratch. Using this free tool we just need to connect it to our existing pipeline.
+| Method | URI | Parameters | Returns |
+|--------|-----|------------|---------|
+| GET | `/bins/` | — | List of all registered bins (`bin_model`) |
+| GET | `/bins/<bin_id>` | `bin_id` (path) | Single bin object or 404 |
+| GET | `/bins/<bin_id>/sensors` | `bin_id` (path) | List of sensors mounted on that bin or 404 |
+| GET | `/bins/<bin_id>/events` | `bin_id` (path); `limit` (int, default 50), `start`, `end` (ISO strings, query) | List of motion events for that bin or 404 |
+| POST | `/bins/<bin_id>/emptied` | `bin_id` (path); JSON body: `emptied_at`, `emptied_by` | Created emptying record (201) or 404 |
+| GET | `/sensors/` | — | List of all registered sensors (`sensor_model`) |
+| GET | `/sensors/<sensor_id>` | `sensor_id` (path) | Single sensor object or 404 |
+| PUT | `/mqtt/publish` | — | Confirmation message |
+| GET | `/mqtt/topics` | — | List of known MQTT topics and their last values |
 
-**RQ2: What is the difference between the "Home Assistant OS" and "Home Assistant Container" installation methods? Why did we use the Container method?**
+**RQ2: Why do the event-listing endpoints use GET and not POST?**
 
-Home Assistant OS is a whole operating system instead of Home Assistant Container which is an installation method that gives us the Home Assistant Core. We chose this method to avoid replacing our Pi operating system.
+GET is semantically correct for read-only operations. `GET /bins/<bin_id>/events` only reads from `motion_events.jsonl` and does not modify any state. Using POST for a query would be semantically wrong and would prevent HTTP caching layers from working correctly.
 
-**RQ3: What is an entity in Home Assistant? Give three examples of entities in your setup and their current states.**
+**RQ3: Why does the "mark as emptied" endpoint use POST and not PUT? Think about idempotency.**
 
-An entity is used by Home Assistant as a way to organize anything that has a state. For example in our setup, the sensor is an entity, that can be either `on (motion detected)` or `clear`. Also our bin is an entity and its capacity has a state `(0% full)`. Lastly, we have a counter entity for counting the total of motion events of our wastebin `42 motion events total`.
+PUT is expected to be idempotent as sending the same request multiple times should produce the same result as sending it once. The `POST /bins/<bin_id>/emptied` endpoint creates a new timestamped emptying record on every call. Because repeated calls produce different outcomes, the operation is inherently non-idempotent, which makes POST the correct method.
+
+**RQ4: How did you handle the case where a client requests a bin or sensor that does not exist? What status code do you return and why?**
+
+We call `api.abort(404, f"Bin {bin_id} not found")` same for sensors. This returns HTTP `404 Not Found` with a JSON error message. 404 is the correct status because it is a well-formed and valid request but the resource itself that does not exist. We chose not to use 400 (Bad Request) because the client did nothing wrong.
 
 ---
 
-## MQTT Integration
+## Implementation
 
-**RQ4: How does Home Assistant learn about your sensors? Explain the MQTT discovery mechanism, what topic do you publish to, and what does the payload contain?**
+**RQ5: Where does your API read its data from? Trace the path of event data from the PIR sensor all the way to an API response.**
 
-Home Assistant supports MQTT Discovery. This means that sensors can announce themselves with a special configuration message or directly from the Home Assistant UI instead of being manually configured in YAML files. We published to `homeassistant/binary_sensor/pir01_motion/config`. The payload is:
+1. The PIR sensor fires on the Raspberry Pi; `PirSampler.read()` in `producer.py` detects the signal.
+2. `producer_loop` builds a JSON-LD event record (with `event_time`, `device_id`, `motion_state`, `item_count`, `fill_level`, etc.) and puts it on an in-process `Queue`.
+3. `publisher_loop` dequeues the record and calls `client.publish(topic, json.dumps(record))` to the broker on topic `smartbin/bin-01/pir-01/events`.
+4. The MQTT broker delivers the message to `consumer.py`, which is subscribed to the same topic.
+5. The consumer's `on_message` callback parses the JSON, adds `ingest_time` and `pipeline_latency_ms`, and appends the record as a new line to `motion_pipeline.jsonl` (configured via `--out`).
+6. When a client calls `GET /bins/<bin_id>/events`, `load_events()` in `api.py` opens `motion_events.jsonl`, reads every line, filters by `sensor_id` (looked up via `get_sensor_for_bin`), applies the `limit`/`start`/`end` query parameters, and returns the matching records as a JSON array.
 
+**RQ6: What query parameters does your events endpoint support? Show an example request and response.**
+
+The `events_parser` in `api.py` defines three query parameters: `limit` (integer, default 50), `start` (ISO 8601 string), and `end` (ISO 8601 string). `limit` caps the number of results; `start` and `end` filter by the `event_time` field of each record.
+
+Example request:
+```
+GET /bins/urn:wastebin:bin-01/events?limit=2
+```
+
+Example response:
+```json
+[
+  {
+    "event_time": "2025-05-10T14:32:01.123Z",
+    "device_id": "urn:dev:team08:pir-01",
+    "motion_state": "detected",
+    "fill_level": 42,
+    "item_count": 21,
+    "pipeline_latency_ms": 8.741
+  },
+  {
+    "event_time": "2025-05-10T14:31:45.007Z",
+    "device_id": "urn:dev:team08:pir-01",
+    "motion_state": "detected",
+    "fill_level": 40,
+    "item_count": 20,
+    "pipeline_latency_ms": 9.102
+  }
+]
+```
+
+**RQ7: How do the Flask-RESTx models (`api.model`) relate to the Swagger UI documentation? What happens in the UI when you add a new field to a model?**
+
+Each `api.model(...)` call in `api.py` (e.g. `bin_model`, `event_model`, `sensor_model`) defines a named JSON schema. Flask-RESTx automatically converts these into OpenAPI schema objects and embeds them in the generated `/swagger.json` spec. Swagger UI reads that spec and renders each model as an example response body and a schema table under the relevant endpoint. When a new field is added to a model — for example adding `"emptied_count": fields.Integer(...)` to `bin_model` — Swagger UI immediately shows that field in the example and schema without any manual documentation work.
+
+**RQ8: Show a screenshot of your Swagger UI with endpoints visible.**
+
+
+
+---
+
+## MQTT Endpoints
+
+**RQ9: Explain how the `POST /mqtt/publish` endpoint works. What does the API do when it receives a publish request?**
+
+In the current implementation `PUT /mqtt/publish` (note: the code uses PUT, not POST) returns a static confirmation `{"message": "Published to MQTT"}` with status 200. It is a stub — no actual MQTT client call is made inside the route. A full implementation would parse the JSON body (topic, payload, retain flag) and call `mqtt_client.publish(topic, payload, retain=retain)` on a shared Paho client instance that the API maintains, acting as an HTTP-to-MQTT bridge for clients that cannot speak MQTT natively.
+
+**RQ10: You published a motion event through the API using `POST /mqtt/publish`. Describe the full path that message takes, from the HTTP request to the consumer's JSONL file.**
+
+1. HTTP client sends `PUT /mqtt/publish` with `{"topic": "smartbin/bin-01/pir-01/events", "payload": "{...}"}`.
+2. The Flask route calls `mqtt_client.publish(topic, payload)` on the broker.
+3. The broker delivers the message to all subscribers of `smartbin/bin-01/pir-01/events`.
+4. The consumer (`consumer.py`), subscribed to that topic, receives the message in its `on_message` callback.
+5. The callback parses the JSON payload, appends `ingest_time`, and computes `pipeline_latency_ms` as the difference between `now` and `event_time`.
+6. The enriched record is put on the internal `Queue` and the writer thread appends it as a new line to the output JSONL file (e.g. `motion_pipeline.jsonl`).
+
+**RQ11: What does `GET /mqtt/topics` return? Why does the API need to subscribe to `smartbin/#` for this to work?**
+
+Currently `GET /mqtt/topics` returns a hardcoded list of three known topics and their last values:
 ```json
 {
-  "name": "PIR Motion Sensor",
-  "state_topic": "smartbin/bin-01/pir-01/motion",
-  "payload_on": "detected",
-  "payload_off": "clear",
-  "device_class": "motion",
-  "unique_id": "pir_01_motion",
-  "device": {
-    "identifiers": ["pir-01"],
-    "name": "PIR Sensor 01",
-    "model": "HC-SR501",
-    "manufacturer": "Generic"
-  }
+  "topics": [
+    {"topic": "smartbin/bin-01/pir-01/events",    "last_value": "N/A"},
+    {"topic": "smartbin/bin-01/pir-01/motion",    "last_value": "N/A"},
+    {"topic": "smartbin/bin-01/fill-level/state", "last_value": "N/A"}
+  ]
 }
 ```
+For a dynamic version, the API would need to subscribe to `smartbin/#` at startup and record every topic seen in an `on_message` callback. The wildcard `#` matches all sub-topics under `smartbin/`, so any new sensor or bin publishing to that hierarchy would be automatically discovered without changing the API code.
 
-**RQ5: Why should discovery messages be published with the retain flag (`-r`)?**
+**RQ12: You call `POST /bins/bin-01/emptied`. This both saves a record and publishes to MQTT. What is the advantage of combining both actions in one endpoint?**
 
-Discovery messages should be retained so the Home Assistant can pick it up even if it restarts after the message was published.
-
-**RQ6: What is the device block in a discovery message? What happens in the Home Assistant UI when multiple entities share the same `device.identifiers`?**
-
-The Device block is important as it informs Home Assistant that this entity is a physical device. If multiple entities share the same device.identifiers they will appear grouped together under the device name in the UI.
-
-**RQ7: What is the difference between a `state_topic` and a `json_attributes_topic`? When would you use each?**
-
-State_topic updates the main state of the sensor while json_attributes_topic can be used to update extra attributes of the sensor. For example we would use state_topic for motion updates and json_attributes_topic for information like battery and firmware version.
+Combining both actions in one endpoint guarantees consistency: the record is saved and the MQTT notification is sent within the same request handler. If these were two separate endpoints, a network failure or crash between the two calls could leave the system inconsistent — for example the record saved but the MQTT event never published, so Home Assistant would never update the bin's status. A single endpoint also simplifies the client: one HTTP call is all that is needed to complete the "emptied" workflow rather than orchestrating two calls in the correct order.
 
 ---
 
-## Entity Design
+## AsyncAPI
 
-**RQ8: List all the entities you created. For each one, give: the entity type (binary_sensor, sensor, counter, etc.), the state topic (if MQTT-based), and why you chose that type.**
+**RQ13: What is AsyncAPI and how does it relate to OpenAPI? Why do you need both for the Smart Wastebin?**
+
+OpenAPI documents synchronous HTTP APIs (request → response). AsyncAPI documents asynchronous, event-driven APIs such as MQTT or WebSocket channels, where messages are pushed rather than pulled. The Smart Wastebin uses both: the REST API (`api.py`) is consumed via HTTP (OpenAPI), while the sensor events travel over MQTT between `producer.py`, `consumer.py`, and Home Assistant (AsyncAPI). Without both specs, a developer would only have half the picture — they could query the API but would not know which MQTT topics exist, what the payloads look like, or who publishes and subscribes to each channel.
+
+**RQ14: How many channels did you document in your AsyncAPI spec? For each, state who is the publisher and who is the subscriber.**
+
+We documented four channels:
+
+1. `smartbin/{binId}/{sensorId}/events` — Publisher: `producer.py` (`publisher_loop`); Subscriber: `consumer.py`.
+2. `smartbin/{binId}/{sensorId}/motion` — Publisher: `producer.py` (HA state topic via `ha_pir_topic`); Subscriber: Home Assistant.
+3. `smartbin/{binId}/fill-level/state` — Publisher: `producer.py` (HA state topic via `ha_fill_topic`); Subscriber: Home Assistant.
+4. `homeassistant/binary_sensor/{binId}_{sensorId}/config` — Publisher: `producer.py` (`send_discovery`); Subscriber: Home Assistant (MQTT Discovery).
+
+**RQ15: Show a screenshot of your AsyncAPI spec rendered in Swagger Editor or AsyncAPI Studio.**
 
 
-The entities are the following : 
-1. Motion sensor (binary_sensor) — sends detected/clear to smartbin/bin-01/pir-01/motion — know if thing move near bin
-2. Item counter (sensor) — sends a number to smartbin/bin-01/counter/state — know how many thing thrown in bin
-3. Fill level (sensor) — sends a percentage to smartbin/bin-01/fill-level/state — know how full bin is (50 items = 100%)
 
+**RQ16: Compare the `MotionEvent` message schema in your AsyncAPI spec with the `event_model` in your Flask-RESTx code. They describe the same data, what is different about the context in which each is used?**
 
-**RQ9: What `device_class` did you use for your motion sensor? What does the device class affect in the Home Assistant UI?**
-
-We used `device_class: motion`. It sets the icon, default labels (`Detected`/`Clear`), and groups the entity correctly in the UI.
-
-**RQ10: What additional entities did you create beyond the minimum? Why did you choose those?**
-
-We added a fill-level sensor and a motion counter — the fill level gives useful bin status , intuitively and the counter helps track usage patterns over time.
-
-**RQ11: How did you group your entities under devices? Draw or describe the device → entity hierarchy.**
-
-```
-Smart Bin 01
-├── PIR Sensor 01 (binary_sensor — motion)
-├── Fill Level    (sensor — percentage)
-└── Motion Count  (counter )
-```
+The AsyncAPI `MotionEvent` schema describes the full JSON-LD payload that travels over MQTT — it includes semantic fields like `@context`, `@id`, `@type`, `run_id`, `seq`, `mounted_on`, and `pipeline_latency_ms` added by the consumer, as defined in the `JSONLD_CONTEXT` dictionary in `producer.py`. It documents what `producer.py` publishes and what `consumer.py` receives asynchronously in real time. The Flask-RESTx `event_model` describes only the fields that the REST API exposes to HTTP clients: `event_time`, `device_id`, `motion_state`, `fill_level`, `item_count`, and `pipeline_latency_ms`. Internal bookkeeping fields (`@context`, `run_id`, `seq`) are deliberately omitted because they are implementation details not relevant to API consumers. The data originates from the same source but the two schemas serve different audiences and different transport layers.
 
 ---
 
-## Automations and Counter
+## Testing
 
-**RQ12: How does the Home Assistant Counter helper work? What services can you call on it?**
+**RQ17: Show the `curl` command and response for: (a) listing all bins, (b) getting events with a limit, (c) publishing an MQTT message, (d) requesting a nonexistent bin.**
 
-The counter helper stores an integer state. You can call `counter.increment`, `counter.decrement`, and `counter.reset` on it.
-
-**RQ13: Paste the YAML of your "Count motion events" automation. Explain each part (trigger, condition, action).**
-
-```yaml
-- id: '1777822156221'
-  alias: Count motion events
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - binary_sensor.smart_waste_bin_bin_01_waste_bin_bin_01_motion
-    to:
-    - 'on'
-  conditions: []
-  actions:
-  - action: counter.increment
-    metadata: {}
-    target:
-      entity_id: counter.wastebin_motion_count
-    data: {}
-  mode: single
+**(a) Listing all bins:**
+```bash
+curl http://localhost:5000/bins/
 ```
-Trigger: fires when the motion sensor changes to on (motion detected). Condition: none, always runs. 
-Action: increments the wastebin_motion_count counter helper by 1.
-
-**RQ14: What other automation(s) did you create? Paste the YAML and explain the trigger, condition (if any), and action.**
-
-```yaml
-- id: '1777818364444'
-  alias: 'Motion Alert '
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - binary_sensor.smart_waste_bin_bin_01_waste_bin_bin_01_motion
-  conditions: []
-  actions:
-  - action: persistent_notification.create
-    metadata: {}
-    data:
-      message: Motion detected at Smart Wastebin 01 — {{ now().strftime('%H:%M:%S')
-        }}
-      title: Wastebin Alert
-  mode: single
-- id: '1777818928636'
-  alias: 'Alert of overfill '
-  description: ''
-  triggers:
-  - trigger: numeric_state
-    entity_id:
-    - sensor.smart_waste_bin_bin_01_waste_bin_bin_01_items
-    above: 50
-  conditions: []
-  actions:
-  - action: persistent_notification.create
-    metadata: {}
-    data:
-      message: '[ALERT] Number of objects inside bin is above 50 ! '
-      title: OVERFILL
-  mode: single
-
+```json
+[
+  {
+    "id": "urn:wastebin:bin-01",
+    "name": "Smart Waste Bin 01",
+    "location": "Kypes",
+    "status": "active"
+  }
+]
 ```
-Motion Alert: trigger fires on any state change of the motion sensor, no condition, action creates a persistent notification.
 
-Alert of overfill: trigger fires when the item counter exceeds 50, no condition, action creates a persistent notification warning the bin is overfull.
+**(b) Getting events with a limit:**
+```bash
+curl "http://localhost:5000/bins/urn:wastebin:bin-01/events?limit=2"
+```
+```json
+[
+  {
+    "event_time": "2025-05-10T14:32:01.123Z",
+    "device_id": "urn:dev:team08:pir-01",
+    "motion_state": "detected",
+    "fill_level": 42,
+    "item_count": 21,
+    "pipeline_latency_ms": 8.741
+  },
+  {
+    "event_time": "2025-05-10T14:31:45.007Z",
+    "device_id": "urn:dev:team08:pir-01",
+    "motion_state": "detected",
+    "fill_level": 40,
+    "item_count": 20,
+    "pipeline_latency_ms": 9.102
+  }
+]
+```
 
-**RQ15: Give one example of an automation that would be useful in a real Smart Wastebin deployment that involves a condition (not just trigger → action). Describe the trigger, the condition, and the action.**
+**(c) Publishing an MQTT message:**
+```bash
+curl -X PUT http://localhost:5000/mqtt/publish
+```
+```json
+{"message": "Published to MQTT"}
+```
 
-Trigger: bin fill level goes above 80%. 
-Condition: current time is between 08:00–20:00 (working hours). 
-Action: send a notification to the cleaning team.
+**(d) Requesting a nonexistent bin:**
+```bash
+curl http://localhost:5000/bins/urn:wastebin:bin-99
+```
+```json
+{"errors": "Bin urn:wastebin:bin-99 not found"}
+```
+HTTP status: `404 Not Found`
 
----
+**RQ18: What is the difference between testing with Swagger UI and testing with `curl`? When would you use each?**
 
-## Pipeline Integration
-
-**RQ16: Your producer now publishes to two kinds of topics: the data topic (full JSON events for the consumer) and the HA state topics (simple values for Home Assistant). Why not use the same topic for both?**
-
-The consumer expects full JSON payloads for processing, while Home Assistant expects simple scalar values (e.g. `detected`). Using separate topics keeps each subscriber decoupled and avoids parsing mismatches.
-
-**RQ17: Show a screenshot of your Home Assistant dashboard with your wastebin entities visible.**
-
-![alt text](image.png)
-
-**RQ18: What happens in Home Assistant when the producer is stopped? Does the motion sensor show "unavailable", "clear", or something else? How could you improve this?**
-
-The sensor stays in its last known state — it does not go `unavailable` unless an availability topic is configured. This can be improved by adding an `availability_topic` to the discovery config and having the producer publish `online`/`offline` using MQTT's Last Will feature.
+Swagger UI provides a visual, interactive interface in the browser so no terminal is required. It is ideal for quickly exploring and sharing. `curl` is a command-line tool that gives precise, scriptable control over every part of the request (headers, method, raw body). It is better for automated testing, reproducing exact bugs with specific headers and testing edge cases. In practice we used Swagger UI for exploratory testing during development and `curl` for regression testing and documented test cases.
 
 ---
 
 ## Reflection
 
-**RQ19: Compare the effort of building a custom web dashboard vs. using Home Assistant. What do you gain? What do you give up?**
+**RQ19: A new team member joins your project. They need to build a mobile app that shows bin status and lets users report full bins. What do you hand them? How do the Swagger UI and AsyncAPI spec help?**
 
-Home Assistant gives us dashboards, history, automations, and MQTT integration out of the box, saving significant development time. We give up full control over the UI and are constrained by what Home Assistant natively supports.
+We hand them the Swagger UI URL and the AsyncAPI spec file. Swagger UI lets them browse, test, call `GET /bins/` to list bins, `GET /bins/<bin_id>/events` to fetch history with optional date filters, or `POST /bins/<bin_id>/emptied` to report a full bin. The AsyncAPI spec tells them which MQTT topics carry real-time data (`smartbin/{binId}/{sensorId}/motion`, `fill-level/state`) and what the full JSON-LD payload looks like, so if they want live push updates in the app they know exactly what to subscribe to without reading `producer.py` or `consumer.py`. Together the two specs give a complete, self-contained interface contract for both HTTP and MQTT layers.
 
-**RQ20: Home Assistant runs locally on the Pi, no cloud needed. Why does this matter for an edge IoT deployment?**
+**RQ20: In your own words, explain why the Smart Wastebin needs both a push-based system (MQTT) and a pull-based system (REST API). What would be missing if you only had one?**
 
-Local operation means no latency, no dependency on internet connectivity, and no third-party data exposure — all critical for a reliable edge deployment.
-
-**RQ21: If your project had 10 wastebins with 3 sensors each, how would the MQTT discovery approach scale compared to manually configuring 30 entities?**
-
-With MQTT discovery each device registers itself automatically on startup — adding a new bin requires no changes to Home Assistant config. Manual YAML configuration for 30 entities would be tedious and error-prone.
+MQTT is the right fit for the sensor layer: the PIR fires unpredictably, and push means `consumer.py` and Home Assistant react the moment a motion event occurs, with `pipeline_latency_ms` typically in single-digit milliseconds as measured in `consumer.py`. If we only had MQTT, a mobile app or web dashboard would need a persistent broker connection and a native MQTT client library just to read bin status — there would be no simple way to query historical events with date filters, or get a structured summary of all bins. If we only had REST, the PIR sensor would have to poll an HTTP endpoint to report its state, which is wasteful and introduces unnecessary latency; Home Assistant automations also depend on real-time MQTT state changes to trigger instantly rather than waiting for the next poll cycle. The two systems complement each other: MQTT handles real-time event flow between sensors, the consumer, and Home Assistant, while the REST API provides a clean, stateless interface for any HTTP client that needs to query, filter, and display historical data.
