@@ -211,7 +211,9 @@ OpenAPI documents synchronous HTTP APIs (request → response). AsyncAPI documen
 
 **RQ16: Compare the `MotionEvent` message schema in your AsyncAPI spec with the `event_model` in your Flask-RESTx code. They describe the same data, what is different about the context in which each is used?**
 
-The AsyncAPI `MotionEvent` schema describes the full JSON-LD payload that travels over MQTT — it includes semantic fields like `@context`, `@id`, `@type`, `run_id`, `seq`, `mounted_on`, and `pipeline_latency_ms` added by the consumer, as defined in the `JSONLD_CONTEXT` dictionary in `producer.py`. It documents what `producer.py` publishes and what `consumer.py` receives asynchronously in real time. The Flask-RESTx `event_model` describes only the fields that the REST API exposes to HTTP clients: `event_time`, `device_id`, `motion_state`, `fill_level`, `item_count`, and `pipeline_latency_ms`. Internal bookkeeping fields (`@context`, `run_id`, `seq`) are deliberately omitted because they are implementation details not relevant to API consumers. The data originates from the same source but the two schemas serve different audiences and different transport layers.
+The MotionEvent schema in AsyncAPI is used for asynchronous MQTT event messaging between publishers and subscribers in an event-driven system.
+
+The event_model in Flask-RESTx is used for synchronous HTTP REST API communication, mainly for request validation and API documentation.
 
 ---
 
