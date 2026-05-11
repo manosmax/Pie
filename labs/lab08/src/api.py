@@ -242,6 +242,11 @@ class BinEmpty(Resource):
         """
         if not find_bin(bin_id):
             api.abort(404, f"Bin {bin_id} not found")
+        
+        # Only allow emptying bins that have an active sensor
+        sensor_id = get_sensor_for_bin(bin_id)
+        if not sensor_id:
+            api.abort(400, f"Bin {bin_id} has no active sensor attached")
 
         payload = api.payload or {}
         emptied_by = payload.get("emptied_by", "operator")
