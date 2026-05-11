@@ -12,22 +12,32 @@
 lab08/
 ├── README.md
 ├── requirements.txt
-├── api.py
-├── asyncapi.yaml
-├── producer.py
-├── consumer.py
-└── pirlib/
-    ├── __init__.py
-    ├── sampler.py
-    └── interpreter.py
-```
-
+├── asyncapi.yml
+├── docker-compose.yml
+├── Dockerfile
+├── mosquitto.conf
+├── docs/
+│   └── Ontology
+├── models/
+│   ├── context.jsonld
+│   ├── environment.jsonld
+│   ├── sensor.jsonld
+│   └── wastebin.jsonld
+└── src/
+    ├── api.py
+    ├── consumer.py
+    ├── producer.py
+    └── pirlib/
+        ├── __init__.py
+        ├── interpreter.py
+        └── sampler.py```
+``` 
 
 ### Run
 
-** Start the MQTT broker, API, Producer and Consumer:**
+**Start the MQTT broker, API, Producer and Consumer:**
 ```bash
-docker compose up
+docker compose up --build 
 ```
 
 
@@ -67,7 +77,31 @@ flowchart TD
 
 ```
  
-# Part B
+### API Design Table
+
+| Method | URI | Parameters | Returns |
+|--------|-----|------------|---------|
+| GET | `/bins/` | — | List of all registered bins  |
+| GET | `/bins/<bin_id>` | `bin_id` (path) | Single bin object or 404 |
+| GET | `/bins/<bin_id>/events` | `bin_id` (path); `limit` (int, default 50) | List of motion events for that bin or 404 |
+| POST | `/bins/<bin_id>/empty` | `bin_id` (path); JSON body: `emptied_by` | Created emptying record (201) or 404 |
+| GET | `/bins/<bin_id>/emptied-history` | `bin_id` (path); `limit` (int, default 20) | List of emptied records for that bin |
+| GET | `/sensors/` | — | List of all registered sensors (`Sensor  Objects`) |
+| GET | `/sensors/<sensor_id>` | `sensor_id` (path) | Single sensor object or 404 |
+| POST | `/mqtt/publish` |JSON body: topic (required), payload (required), qos (optional, int, default=1), retain (optional, bool, default=false)|Published message confirmation (200) or 400 error |
+| GET | `/mqtt/topics` | — | List of known MQTT topics and their last values |
+| GET | `/mqtt/topics/<topic>` | `topic` (path, supports wildcards)| Last received message for the topic or 404 error |
+
+### Swager ui 
+![alt text](image-1.png)
+
+
+
+### AsyncSTUDIO 
+![alt text](image-2.png)
+
+
+### 
 
 ---
 
@@ -81,6 +115,7 @@ flowchart TD
 | GET | `/bins/<bin_id>` | `bin_id` (path) | Single bin object or 404 |
 | GET | `/bins/<bin_id>/events` | `bin_id` (path); `limit` (int, default 50) | List of motion events for that bin or 404 |
 | POST | `/bins/<bin_id>/empty` | `bin_id` (path); JSON body: `emptied_by` | Created emptying record (201) or 404 |
+| GET | `/bins/<bin_id>/emptied-history` | `bin_id` (path); `limit` (int, default 20) | List of emptied records for that bin |
 | GET | `/sensors/` | — | List of all registered sensors (`Sensor  Objects`) |
 | GET | `/sensors/<sensor_id>` | `sensor_id` (path) | Single sensor object or 404 |
 | POST | `/mqtt/publish` |JSON body: topic (required), payload (required), qos (optional, int, default=1), retain (optional, bool, default=false)|Published message confirmation (200) or 400 error |
