@@ -77,15 +77,15 @@ flowchart TD
 
 | Method | URI | Parameters | Returns |
 |--------|-----|------------|---------|
-| GET | `/bins/` | — | List of all registered bins (`bin_model`) |
+| GET | `/bins/` | — | List of all registered bins  |
 | GET | `/bins/<bin_id>` | `bin_id` (path) | Single bin object or 404 |
-| GET | `/bins/<bin_id>/sensors` | `bin_id` (path) | List of sensors mounted on that bin or 404 |
-| GET | `/bins/<bin_id>/events` | `bin_id` (path); `limit` (int, default 50), `start`, `end` (ISO strings, query) | List of motion events for that bin or 404 |
-| POST | `/bins/<bin_id>/emptied` | `bin_id` (path); JSON body: `emptied_at`, `emptied_by` | Created emptying record (201) or 404 |
-| GET | `/sensors/` | — | List of all registered sensors (`sensor_model`) |
+| GET | `/bins/<bin_id>/events` | `bin_id` (path); `limit` (int, default 50) | List of motion events for that bin or 404 |
+| POST | `/bins/<bin_id>/empty` | `bin_id` (path); JSON body: `emptied_by` | Created emptying record (201) or 404 |
+| GET | `/sensors/` | — | List of all registered sensors (`Sensor  Objects`) |
 | GET | `/sensors/<sensor_id>` | `sensor_id` (path) | Single sensor object or 404 |
-| PUT | `/mqtt/publish` | — | Confirmation message |
+| POST | `/mqtt/publish` |JSON body: topic (required), payload (required), qos (optional, int, default=1), retain (optional, bool, default=false)|Published message confirmation (200) or 400 error |
 | GET | `/mqtt/topics` | — | List of known MQTT topics and their last values |
+| GET | `/mqtt/topics/<topic>` | `topic` (path, supports wildcards)| Last received message for the topic or 404 error |
 
 **RQ2: Why do the event-listing endpoints use GET and not POST?**
 
@@ -105,23 +105,28 @@ We call `api.abort(404, f"Bin {bin_id} not found")` same for sensors. This retur
 
 **RQ5: Where does your API read its data from? Trace the path of event data from the PIR sensor all the way to an API response.**
 
-1. The PIR sensor fires on the Raspberry Pi; `PirSampler.read()` in `producer.py` detects the signal.
-2. `producer_loop` builds a JSON-LD event record (with `event_time`, `device_id`, `motion_state`, `item_count`, `fill_level`, etc.) and puts it on an in-process `Queue`.
-3. `publisher_loop` dequeues the record and calls `client.publish(topic, json.dumps(record))` to the broker on topic `smartbin/bin-01/pir-01/events`.
-4. The MQTT broker delivers the message to `consumer.py`, which is subscribed to the same topic.
-5. The consumer's `on_message` callback parses the JSON, adds `ingest_time` and `pipeline_latency_ms`, and appends the record as a new line to `motion_pipeline.jsonl` (configured via `--out`).
-6. When a client calls `GET /bins/<bin_id>/events`, `load_events()` in `api.py` opens `motion_events.jsonl`, reads every line, filters by `sensor_id` (looked up via `get_sensor_for_bin`), applies the `limit`/`start`/`end` query parameters, and returns the matching records as a JSON array.
+1.PIR Sensor → PirSampler.read() detects motion on GPIO pin 17
+2.Event Record Creation → producer_loop() builds JSON-LD record with event_time, device_id, motion_state, item_count, fill_level
+3.In-Process Queue → Record placed on Queue for decoupling 
+4.MQTT Publish →` publisher_loop()` dequeues and publishes to smartbin/bin-01/pir-01/events 
+5.MQTT Broker → Mosquitto broker delivers message to subscribers
+6.Consumer persists to `motion_events.jsonl` JSONL file
+API subscribes to smartbin/# and stores in-memory topic_store dict 
+7.API Query → Client calls `GET /bins/<bin_id>/events?limit=10 `
+8.`load_events()` reads JSONL file line-by-line.
+9.API Response → Returns JSON array of Event objects
 
 **RQ6: What query parameters does your events endpoint support? Show an example request and response.**
 
-The `events_parser` in `api.py` defines three query parameters: `limit` (integer, default 50), `start` (ISO 8601 string), and `end` (ISO 8601 string). `limit` caps the number of results; `start` and `end` filter by the `event_time` field of each record.
+Parameter used `limit` which defaults to 50.
 
-Example request:
-```
+Example Request:
+
+```bash
 GET /bins/urn:wastebin:bin-01/events?limit=2
 ```
+Example Response:
 
-Example response:
 ```json
 [
   {
@@ -129,23 +134,21 @@ Example response:
     "device_id": "urn:dev:team08:pir-01",
     "motion_state": "detected",
     "fill_level": 42,
-    "item_count": 21,
-    "pipeline_latency_ms": 8.741
+    "item_count": 21
   },
   {
     "event_time": "2026-05-10T14:31:45.007Z",
     "device_id": "urn:dev:team08:pir-01",
     "motion_state": "detected",
     "fill_level": 40,
-    "item_count": 20,
-    "pipeline_latency_ms": 9.102
+    "item_count": 20
   }
 ]
 ```
 
 **RQ7: How do the Flask-RESTx models (`api.model`) relate to the Swagger UI documentation? What happens in the UI when you add a new field to a model?**
-ANASTASIIIIIII😘😘😘
-Each `api.model(...)` call in `api.py` (e.g. `bin_model`, `event_model`, `sensor_model`) defines a named JSON schema. Flask-RESTx automatically converts these into OpenAPI schema objects and embeds them in the generated `/swagger.json` spec. Swagger UI reads that spec and renders each model as an example response body and a schema table under the relevant endpoint. When a new field is added to a model — for example adding `"emptied_count": fields.Integer(...)` to `bin_model` — Swagger UI immediately shows that field in the example and schema without any manual documentation work.
+
+Flask-RESTx models (lines 180-219) are Python class definitions that automatically generate OpenAPI schema documentation for Swagger UI. In Swagger UI the new field automatically appears in the Event schema definition,the field appears in the Try It Out response examples and API clients see the new field in the response schema immediately (without redeployment if doc refresh occurs).
 
 **RQ8: Show a screenshot of your Swagger UI with endpoints visible.**
 ANASTASIIIIIII😘😘😘
@@ -156,31 +159,46 @@ ANASTASIIIIIII😘😘😘
 ## MQTT Endpoints
 
 **RQ9: Explain how the `POST /mqtt/publish` endpoint works. What does the API do when it receives a publish request?**
-KAI EDWWW👍
-In the current implementation `PUT /mqtt/publish` (note: the code uses PUT, not POST) returns a static confirmation `{"message": "Published to MQTT"}` with status 200. It is a stub — no actual MQTT client call is made inside the route. A full implementation would parse the JSON body (topic, payload, retain flag) and call `mqtt_client.publish(topic, payload, retain=retain)` on a shared Paho client instance that the API maintains, acting as an HTTP-to-MQTT bridge for clients that cannot speak MQTT natively.
+
+The endpoint validates input, publishes directly to MQTT broker via mqtt_client.publish(), and returns confirmation with the MQTT result code. The API receives an HTTP POST request with MQTT message details and publishes them directly to the MQTT broker.
+
 
 **RQ10: You published a motion event through the API using `POST /mqtt/publish`. Describe the full path that message takes, from the HTTP request to the consumer's JSONL file.**
 
-1. HTTP client sends `PUT /mqtt/publish` with `{"topic": "smartbin/bin-01/pir-01/events", "payload": "{...}"}`.
-2. The Flask route calls `mqtt_client.publish(topic, payload)` on the broker.
-3. The broker delivers the message to all subscribers of `smartbin/bin-01/pir-01/events`.
-4. The consumer (`consumer.py`), subscribed to that topic, receives the message in its `on_message` callback.
-5. The callback parses the JSON payload, appends `ingest_time`, and computes `pipeline_latency_ms` as the difference between `now` and `event_time`.
-6. The enriched record is put on the internal `Queue` and the writer thread appends it as a new line to the output JSONL file (e.g. `motion_pipeline.jsonl`).
+1. HTTP POST → Client sends motion event to /mqtt/publish.
+2. API Validates → Checks topic, payload, QoS.
+3. API Publishes → mqtt_client.publish(topic, payload) to MQTT broker.
+4. MQTT Broker → Mosquitto receives and delivers to subscribers.
+5. Consumer Receives → Consumer's publisher_loop subscribed to topic.
+6. on_message Callback → Parses JSON payload.
+7. Appends File → client.publish(args.topic, json.dumps(record)) publishes to default topic.
+8. JSONL Stored → Consumer writes event to file (persisted via producer loop).
 
 **RQ11: What does `GET /mqtt/topics` return? Why does the API need to subscribe to `smartbin/#` for this to work?**
 
 Currently `GET /mqtt/topics` returns a hardcoded list of three known topics and their last values:
 ```json
 {
+  "topic_count": 5,
   "topics": [
-    {"topic": "smartbin/bin-01/pir-01/events",    "last_value": "N/A"},
-    {"topic": "smartbin/bin-01/pir-01/motion",    "last_value": "N/A"},
-    {"topic": "smartbin/bin-01/fill-level/state", "last_value": "N/A"}
+    {
+      "topic": "smartbin/bin-01/pir-01/events",
+      "payload": "{\"event_time\": \"2026-05-10T14:32:01.123Z\", ...}",
+      "qos": 1,
+      "retain": false,
+      "timestamp": "2026-05-10T14:32:05.456Z"
+    },
+    {
+      "topic": "smartbin/bin-01/fill-level/state",
+      "payload": "42",
+      "qos": 1,
+      "retain": true,
+      "timestamp": "2026-05-10T14:31:50.789Z"
+    }
   ]
 }
 ```
-For a dynamic version, the API would need to subscribe to `smartbin/#` at startup and record every topic seen in an `on_message` callback. The wildcard `#` matches all sub-topics under `smartbin/`, so any new sensor or bin publishing to that hierarchy would be automatically discovered without changing the API code.
+Without subscription - The API wouldn't receive any MQTT messages, so topic_store would be empty.
 
 **RQ12: You call `POST /bins/bin-01/emptied`. This both saves a record and publishes to MQTT. What is the advantage of combining both actions in one endpoint?**
 
@@ -204,6 +222,8 @@ OpenAPI documents synchronous HTTP APIs (request → response). AsyncAPI documen
 | **fillLevelState**    | `smartbin/{bin_id}/fill-level/state`                      | Smart Wastebin Producer                               | Home Assistant                        |
 | **haDiscoveryMotion** | `homeassistant/binary_sensor/{bin_id}_{sensor_id}/config` | Smart Wastebin Producer                               | Home Assistant MQTT Discovery service |
 | **haDiscoveryFill**   | `homeassistant/sensor/{bin_id}_fill/config`               | Smart Wastebin Producer                               | Home Assistant MQTT Discovery service |
+| **binCommand**        | `smartbin/{bin_id}/command`                               | API                                                   | Producer (to reset state)             |
+| **binStatus**         | `smartbin/{bin_id}/status`                                | 	API                                                 | Home Assistant / monitoring clients   |
 
 
 **RQ15: Show a screenshot of your AsyncAPI spec rendered in Swagger Editor or AsyncAPI Studio.**
@@ -243,30 +263,42 @@ curl "http://localhost:5000/bins/urn:wastebin:bin-01/events?limit=2"
 ```json
 [
   {
-    "event_time": "2025-05-10T14:32:01.123Z",
+    "event_time": "2026-05-10T14:32:01.123Z",
     "device_id": "urn:dev:team08:pir-01",
     "motion_state": "detected",
     "fill_level": 42,
-    "item_count": 21,
-    "pipeline_latency_ms": 8.741
+    "item_count": 21
   },
   {
-    "event_time": "2025-05-10T14:31:45.007Z",
+    "event_time": "2026-05-10T14:31:45.007Z",
     "device_id": "urn:dev:team08:pir-01",
     "motion_state": "detected",
     "fill_level": 40,
-    "item_count": 20,
-    "pipeline_latency_ms": 9.102
+    "item_count": 20
   }
 ]
 ```
 
 **(c) Publishing an MQTT message:**
 ```bash
-curl -X PUT http://localhost:5000/mqtt/publish
+curl -X POST http://localhost:5000/mqtt/publish \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "smartbin/test/motion",
+    "payload": "{\"test\": \"data\"}",
+    "qos": 1,
+    "retain": false
+  }'
 ```
 ```json
-{"message": "Published to MQTT"}
+{
+  "status": "published",
+  "topic": "smartbin/test/motion",
+  "payload": "{\"test\": \"data\"}",
+  "qos": 1,
+  "retain": false,
+  "mqtt_rc": 0
+}
 ```
 
 **(d) Requesting a nonexistent bin:**
@@ -274,7 +306,9 @@ curl -X PUT http://localhost:5000/mqtt/publish
 curl http://localhost:5000/bins/urn:wastebin:bin-99
 ```
 ```json
-{"errors": "Bin urn:wastebin:bin-99 not found"}
+{
+  "errors": "Bin urn:wastebin:bin-99 not found"
+}
 ```
 HTTP status: `404 Not Found`
 
