@@ -15,7 +15,6 @@ MQTT_BROKER = os.environ.get("MQTT_BROKER", "mosquitto")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 
 mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "wastebin-api")
-mqtt_client.clean_session = False
 
 topic_store = {}
 topic_lock = threading.Lock()
