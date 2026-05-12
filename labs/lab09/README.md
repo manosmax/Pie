@@ -112,12 +112,19 @@ flowchart LR
 **Rule-based virtual sensor**
 
 **RQ1: What thresholds did you use for idle/low/medium/high? How did you decide on these values?**
+We set 0for idle,3 for low,10 for medium and greater than 10 for high. Because of the size of our bin we decided to lower the thresholds.
+
 
 **RQ2: What window size did you choose and why? What happens if you make it too short (e.g., 1 minute) or too long (e.g., 60 minutes)?**
+We chose to set the window size at 10 minutes. If it is too short the ml will reach to a decision based on single events meaning we won't know the true usage intensity of the bin. Likewise if it is too long because of the extended size we will lost meaningful data like the peak hour.
+
 
 **RQ3: How does the rolling window implementation (the deque) relate to what the lecture described as CEP windowed operators?**
+A deque is the physical memory structure (a sliding window) that allows your system to perform Complex Event Processing (CEP) without running out of memory.
+
 
 **RQ4: What would you need to change if you wanted to add a new level (e.g., “critical” for bins that might overflow)?**
+We need to change thresholds in the virtual sensor rules file.For example we will limit high between 10 and 15 and set critical for greater than 15.
 
 **ML virtual sensor**
 
@@ -134,19 +141,24 @@ flowchart LR
 **Comparison**
 
 **RQ10: Give one scenario where the rule-based sensor and the ML sensor disagree. Which one would you trust more in that scenario, and why?**
+During some special event, where the use of the bin is above the usual levels, the machine learning sensor would predict a much lower than actual value. The rule based sensor takes in the real data and is much more trustworthy. 
 
 **RQ11: The rule-based sensor reacts to the present. The ML sensor predicts the future. Give one use case where each is more useful.**
+If we desire to know the actual usage we are seeing on the bin so that we use that on a digital dashboard the rule based sensor is the ideal choise. If we want to predict future usage so that we schedule clean up trips, the machine learning sensor is the more viable choise. 
 
 **RQ12: If motion patterns changed tomorrow (e.g., the bin was moved to a new location), which sensor would adapt first? What would you need to do for the other?**
+The sensor that would change at once would be the rule based sensor. In order to fit the machine learning sensor to the new data, we would need to retrain it. 
 
 **Architecture**
 
 **RQ13: You added two new processing components to your system without modifying the producer or consumer. How did the pub/sub architecture make this possible?**
+The asychronous publisher subscriber architecture makes possible easy new component integration. The publishers that already existed don't need to know about the new components while the compomenets can use the data they produce freely. 
 
 **RQ14: Both virtual sensors publish to MQTT. Could a third virtual sensor subscribe to their output and combine them? Give an example.**
+A third sensor could subscribe to their output and compare them in order to give the accuracy of the machine learning sensor. In low accuracy situations it could send a warning that would alert a human handler of a needed model retrain. 
 
-**RQ15: Show a screenshot with the raw motion sensor, usage intensity, and activity prediction all visible.**
-
+**RQ15: Show a screenshot with the raw motion sensor, usage intensity, and activity prediction all visible.** 
+![alt text](image.png)
 **Reflection**
 
 **RQ16: In the DIKW pyramid, where does the raw motion event sit? Where does the usage level sit? Where does the prediction sit? What moved the data up each level?**
@@ -154,3 +166,4 @@ flowchart LR
 **RQ17: In your own words, what is a virtual sensor? How does it differ from a physical sensor?**
 
 **RQ18: If you had access to additional sensors (temperature, fill level, noise), what virtual sensor could you build by combining them? Describe the inputs, the logic, and the output.**
+
