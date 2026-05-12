@@ -81,22 +81,19 @@ flowchart TD
 ```
  
 ### Sensor Architecture
-
-
-                                    ┌──────────────────────┐
-                               ┌───▶│  consumer (JSONL)    │
-                               │    └──────────────────────┘
-                               │
-  PIR ──▶ producer ──▶ MQTT ───┤    ┌──────────────────────┐
-                               ├───▶│  virtual sensor       │
-                               │    │  (rules: usage level) │──▶ MQTT ──▶ HA
-                               │    └──────────────────────┘
-                               │
-                               │    ┌──────────────────────┐
-                               └───▶│  virtual sensor       │
-                                    │  (ML: busy predictor) │──▶ MQTT ──▶ HA
-                                    └──────────────────────┘
-
+```mermaid
+flowchart LR
+    PIR --> producer --> MQTT_in[MQTT]
+    
+    MQTT_in --> consumer["consumer (JSONL)"]
+    
+    MQTT_in --> vs1["virtual sensor<br>(rules: usage level)"]
+    vs1 --> MQTT_out1[MQTT] --> HA1[HA]
+    
+    MQTT_in --> vs2["virtual sensor<br>(ML: busy predictor)"]
+    vs2 --> MQTT_out2[MQTT] --> HA2[HA]
+                                   
+```
 ### Swager ui 
 ![alt text](image-1.png)
 
