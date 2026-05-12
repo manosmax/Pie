@@ -77,20 +77,24 @@ flowchart TD
 
 ```
  
-### API Design Table
+### Sensor Architecture
+```mermaid
 
-| Method | URI | Parameters | Returns |
-|--------|-----|------------|---------|
-| GET | `/bins/` | — | List of all registered bins  |
-| GET | `/bins/<bin_id>` | `bin_id` (path) | Single bin object or 404 |
-| GET | `/bins/<bin_id>/events` | `bin_id` (path); `limit` (int, default 50) | List of motion events for that bin or 404 |
-| POST | `/bins/<bin_id>/empty` | `bin_id` (path); JSON body: `emptied_by` | Created emptying record (201) or 404 |
-| GET | `/bins/<bin_id>/emptied-history` | `bin_id` (path); `limit` (int, default 20) | List of emptied records for that bin |
-| GET | `/sensors/` | — | List of all registered sensors (`Sensor  Objects`) |
-| GET | `/sensors/<sensor_id>` | `sensor_id` (path) | Single sensor object or 404 |
-| POST | `/mqtt/publish` |JSON body: topic (required), payload (required), qos (optional, int, default=1), retain (optional, bool, default=false)|Published message confirmation (200) or 400 error |
-| GET | `/mqtt/topics` | — | List of known MQTT topics and their last values |
-| GET | `/mqtt/topics/<topic>` | `topic` (path, supports wildcards)| Last received message for the topic or 404 error |
+
+                                    ┌──────────────────────┐
+                               ┌───▶│  consumer (JSONL)    │
+                               │    └──────────────────────┘
+                               │
+  PIR ──▶ producer ──▶ MQTT ───┤    ┌──────────────────────┐
+                               ├───▶│  virtual sensor       │
+                               │    │  (rules: usage level) │──▶ MQTT ──▶ HA
+                               │    └──────────────────────┘
+                               │
+                               │    ┌──────────────────────┐
+                               └───▶│  virtual sensor       │
+                                    │  (ML: busy predictor) │──▶ MQTT ──▶ HA
+                                    └──────────────────────┘
+```
 
 ### Swager ui 
 ![alt text](image-1.png)
