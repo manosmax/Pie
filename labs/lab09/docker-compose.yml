@@ -1,0 +1,38 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  producer:
+    build: .
+    command: python producer.py --verbose --host mosquitto
+    devices:
+      - /dev/gpiochip0:/dev/gpiochip0
+    volumes:
+      - ./data:/app/data        # ← persists sensor_state.json across restarts
+    depends_on:
+      - mosquitto
+
+  consumer:
+    build: .
+    command: python consumer.py --verbose --host mosquitto --out /app/data/motion_events.jsonl
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - mosquitto
+
+  api:
+    build: .
+    command: python api.py
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data        # ← CRITICAL: lets api read events and write emptied_records
+    environment:
+      - MQTT_BROKER=mosquitto   # ← tells api.py which broker to reach
+    depends_on:
+      - mosquitto
+    # removed: devices — api.py doesn't use GPIO
