@@ -35,4 +35,10 @@ services:
       - MQTT_BROKER=mosquitto   # ← tells api.py which broker to reach
     depends_on:
       - mosquitto
-    # removed: devices — api.py doesn't use GPIO
+
+  virtual_sensor_rules:
+    build: .
+    command: python virtual_sensor_rules.py --broker mosquitto
+    depends_on:
+      - mosquitto
+      - producer                # ← ensures events are flowing before rules start evaluating
