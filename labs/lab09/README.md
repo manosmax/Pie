@@ -78,7 +78,6 @@ flowchart TD
 ```
  
 ### Sensor Architecture
-```mermaid
 
 
                                     ┌──────────────────────┐
@@ -94,7 +93,6 @@ flowchart TD
                                └───▶│  virtual sensor       │
                                     │  (ML: busy predictor) │──▶ MQTT ──▶ HA
                                     └──────────────────────┘
-```
 
 ### Swager ui 
 ![alt text](image-1.png)
