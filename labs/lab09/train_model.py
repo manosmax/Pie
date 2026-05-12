@@ -45,7 +45,7 @@ def generate_training_data(days=30, seed=42):
     return pd.DataFrame(rows)
 
 
-def train_and_save(output_dir="models"):
+def train_and_save(output_dir="models_v_s"):
     os.makedirs(output_dir, exist_ok=True)
 
     df = generate_training_data()
@@ -65,9 +65,7 @@ def train_and_save(output_dir="models"):
     print("Model evaluation:")
     print(classification_report(y_test, y_pred))
 
-
-    models_dir = os.path.join(output_dir, "models_v_s")
-    model_path = os.path.join(models_dir, "busy_predictor.joblib")
+    model_path = os.path.join(output_dir, "busy_predictor.joblib")
     joblib.dump(clf, model_path)
     print(f"Model saved to {model_path}")
 
