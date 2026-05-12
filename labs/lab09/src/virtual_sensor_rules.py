@@ -148,9 +148,9 @@ def evaluate_usage(window_minutes: int = 10) -> tuple[str, int]:
 
     if count == 0:
         return "idle", count
-    elif count <= 5:
+    elif count <= 3:
         return "low", count
-    elif count <= 15:
+    elif count <= 10:
         return "medium", count
     else:
         return "high", count

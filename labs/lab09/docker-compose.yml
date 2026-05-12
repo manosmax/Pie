@@ -42,3 +42,10 @@ services:
     depends_on:
       - mosquitto
       - producer                # ← ensures events are flowing before rules start evaluating
+
+  virtual_sensor_ml:
+    build: .
+    command: python virtual_sensor_ml.py --broker mosquitto
+    depends_on:
+      - mosquitto
+      - producer               
