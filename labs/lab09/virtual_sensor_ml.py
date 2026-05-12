@@ -33,7 +33,7 @@ def main():
     parser.add_argument("--broker",        default="localhost",                    help="MQTT broker hostname or IP address")
     parser.add_argument("--port",          type=int, default=1883,                 help="MQTT broker port")
     parser.add_argument("--publish-topic", default="smartbin/bin-01/prediction",  help="MQTT topic where predictions will be published")
-    parser.add_argument("--model-path",    default="models_s_v/busy_predictor.joblib", help="File path of the trained ML model")
+    parser.add_argument("--model-path",    default="models_v_s/busy_predictor.joblib", help="File path of the trained ML model")
     parser.add_argument("--interval",      type=int, default=60,                   help="Prediction interval in seconds")
     parser.add_argument("--bin-id",        default="bin-01",                       help="Identifier for the smart bin")
     args = parser.parse_args()
