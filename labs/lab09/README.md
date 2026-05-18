@@ -86,7 +86,7 @@ python train_model.py
 | **macro avg** | 0.91 | 0.94 | 0.93 | 144 |
 | **weighted avg** | 0.95 | 0.94 | 0.95 | 144 |
 
-
+![alt text](image-1.png)
 
 ## Part B
 
