@@ -8,17 +8,11 @@ from datetime import datetime, timedelta, timezone
 import paho.mqtt.client as mqtt
 
 
-# ---------------------------------------------------------------------------
-# Shared state
-# ---------------------------------------------------------------------------
 
 event_times: deque = deque()
 event_lock = threading.Lock()
 
 
-# ---------------------------------------------------------------------------
-# Home Assistant MQTT Discovery
-# ---------------------------------------------------------------------------
 
 def send_discovery(client, bin_id: str, publish_topic: str) -> None:
     """
@@ -35,7 +29,6 @@ def send_discovery(client, bin_id: str, publish_topic: str) -> None:
         "manufacturer": "Team 08",
     }
 
-    # --- Usage level: idle / low / medium / high ---
     usage_config = {
         "name": f"Waste Bin {bin_id} Usage Level",
         "state_topic": publish_topic,
@@ -45,7 +38,6 @@ def send_discovery(client, bin_id: str, publish_topic: str) -> None:
         "device": device_info,
     }
 
-    # --- Motion event count (numeric) ---
     count_config = {
         "name": f"Waste Bin {bin_id} Motion Count",
         "state_topic": publish_topic,
@@ -72,9 +64,6 @@ def send_discovery(client, bin_id: str, publish_topic: str) -> None:
     print("[HA] Discovery sent for Usage Level and Motion Count entities.")
 
 
-# ---------------------------------------------------------------------------
-# MQTT callbacks
-# ---------------------------------------------------------------------------
 
 def on_connect(client, userdata, flags, reason_code, properties=None):
     subscribe_topic = userdata["subscribe_topic"]
@@ -119,14 +108,10 @@ def on_message(client, userdata, message):
                 event_times.append(datetime.now(timezone.utc))
 
     except (json.JSONDecodeError, AttributeError):
-        pass  # Malformed message — silently ignore
+        pass  
     except Exception as exc:
         print(f"[WARN] Could not process message: {exc}")
 
-
-# ---------------------------------------------------------------------------
-# Rule engine
-# ---------------------------------------------------------------------------
 
 def evaluate_usage(window_minutes: int = 10) -> tuple[str, int]:
     """
@@ -155,10 +140,6 @@ def evaluate_usage(window_minutes: int = 10) -> tuple[str, int]:
     else:
         return "high", count
 
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(

@@ -12,20 +12,20 @@ def generate_training_data(days=30, seed=42):
     rows = []
 
     for day in range(days):
-        day_of_week = day % 7  # 0=Monday, 6=Sunday
+        day_of_week = day % 7 
 
         for hour in range(24):
-            if day_of_week in (5, 6):       # weekend
+            if day_of_week in (5, 6):       
                 base_rate = 2
-            elif 8 <= hour <= 10:            # morning rush
+            elif 8 <= hour <= 10:           
                 base_rate = 15
-            elif 11 <= hour <= 14:           # lunch
+            elif 11 <= hour <= 14:           
                 base_rate = 25
-            elif 15 <= hour <= 17:           # afternoon
+            elif 15 <= hour <= 17:           
                 base_rate = 12
-            elif 18 <= hour <= 20:           # evening
+            elif 18 <= hour <= 20:          
                 base_rate = 8
-            else:                            # night / early morning
+            else:                            
                 base_rate = 1
 
             event_count = int(rng.normal(base_rate, base_rate * 0.3))

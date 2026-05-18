@@ -21,6 +21,8 @@ lab09/
 ├── virtual_sensor_rules.py
 ├── docs/
 │   └── Ontology
+├── models_v_s/
+│   └── busy_predictor.joblib
 ├── models/
 │   ├── context.jsonld
 │   ├── environment.jsonld
@@ -44,41 +46,6 @@ docker compose up --build
 ```
 
 
-Open your browser and go to `http://<your-pi-ip>:5000` to access the Swagger UI.
-
-### Verify
-
-```bash
-# List all bins
-curl http://localhost:5000/bins/
-
-# Get motion events (latest 10)
-curl "http://localhost:5000/bins/urn:wastebin:bin-01/events?limit=10"
-
-# Check known MQTT topics
-curl http://localhost:5000/mqtt/topics
-```
-### AsyncAPI Architecture
-
-```mermaid
-flowchart TD
-
-    A[PIR Sensor]
-    B[Producer]
-    C[MQTT Broker<br/>Mosquitto]
-
-    D[Consumer]
-    E[Home Assistant]
-    F[MQTT Clients]
-
-    A --> B
-    B -->|publishes| C
-
-    C -->|subscribes| D
-    C -->|subscribes| E
-    C -->|subscribe| F
-
-```
  
 ### Sensor Architecture
 ```mermaid
@@ -94,18 +61,32 @@ flowchart LR
     vs2 --> MQTT_out2[MQTT] --> HA2[HA]
                                    
 ```
-### Swager ui 
-![alt text](image-1.png)
 
+### Usage limits 
 
-
-### AsyncSTUDIO 
-![alt text](image-2.png)
-
-
-### 
-
+| Usage Level | Count Range | Code Condition | System Status |
+| --- | --- | --- | --- |
+| **Idle** | 0 | `count == 0` | Inactive / Standby |
+| **Low** | 1 – 3 | `0 < count <= 3` | Light usage |
+| **Medium** | 4 – 10 | `3 < count <= 10` | Moderate usage |
+| **High** | 11+ | `count > 10` | Heavy usage / Peak load |
 ---
+
+### Train the machine learning model 
+```python 
+python train_model.py 
+``` 
+
+### Classification results 
+| Class / Metric | Precision | Recall | F1-Score | Support |
+| :--- | :---: | :---: | :---: | :---: |
+| **busy** | 0.84 | 0.94 | 0.89 | 34 |
+| **quiet** | 0.98 | 0.95 | 0.96 | 110 |
+| **accuracy** | — | — | 0.94 | 144 |
+| **macro avg** | 0.91 | 0.94 | 0.93 | 144 |
+| **weighted avg** | 0.95 | 0.94 | 0.95 | 144 |
+
+
 
 ## Part B
 

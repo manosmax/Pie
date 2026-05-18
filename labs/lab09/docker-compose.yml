@@ -12,7 +12,7 @@ services:
     devices:
       - /dev/gpiochip0:/dev/gpiochip0
     volumes:
-      - ./data:/app/data        # ← persists sensor_state.json across restarts
+      - ./data:/app/data       
     depends_on:
       - mosquitto
 
@@ -30,9 +30,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./data:/app/data        # ← CRITICAL: lets api read events and write emptied_records
+      - ./data:/app/data        
     environment:
-      - MQTT_BROKER=mosquitto   # ← tells api.py which broker to reach
+      - MQTT_BROKER=mosquitto  
     depends_on:
       - mosquitto
 
@@ -41,7 +41,7 @@ services:
     command: python virtual_sensor_rules.py --broker mosquitto
     depends_on:
       - mosquitto
-      - producer                # ← ensures events are flowing before rules start evaluating
+      - producer               
 
   virtual_sensor_ml:
     build: .

@@ -15,7 +15,7 @@ def predict_next_hour(model):
     now = datetime.now()
 
     next_hour = (now.hour + 1) % 24
-    day_of_week = now.weekday()  # Monday=0, Sunday=6
+    day_of_week = now.weekday()  
     is_weekend = 1 if day_of_week in (5, 6) else 0
 
     features = np.array([[day_of_week, next_hour, is_weekend]])
