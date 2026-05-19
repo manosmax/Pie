@@ -1,4 +1,4 @@
-# Lab 09 — Data Processing on Edge Devices
+# Lab 10 — Node-RED
 
 **Student:** anastasis | 12345678
 
