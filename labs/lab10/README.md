@@ -52,18 +52,25 @@ docker compose up --build
 **Install Node-RED on your Raspberry Pi**
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
- 
 ```
 
 **Start Node-RED**
 ```bash
 node-red-start
-
 ```
 
 **To view Node-RED editor visit: `http://<your-pi-ip>:1880`**
 
+### Lab Structure
+```mermaid
+flowchart LR
+    PIR["PIR"] --> Producer["producer"]
+    Producer --> MQTT["MQTT"]
 
+    MQTT --> Python["Python consumer<br/>(JSONL logger)"]
+    MQTT --> NodeRED["Node-RED<br/>(visual flows)<br/>• dashboard<br/>• alerts<br/>• data routing"]
+    MQTT --> HA["Home Assistant"]                              
+```
 
 ## Part B
 
