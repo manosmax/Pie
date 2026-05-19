@@ -1,0 +1,7 @@
+paho-mqtt
+lgpio
+flask
+flask-restx
+scikit-learn 
+pandas 
+joblib

@@ -1,0 +1,581 @@
+asyncapi: 3.0.0
+
+info:
+  title: Smart Wastebin MQTT Interface
+  version: 1.0.0
+  description: |
+    Event-driven messaging interface for the Smart Wastebin system.
+    All communication goes through a Mosquitto MQTT broker.
+
+servers:
+  mosquitto:
+    host: localhost:1883
+    protocol: mqtt
+    description: Local Mosquitto MQTT broker on the Raspberry Pi
+
+channels:
+
+  # =========================================================
+  # FULL TELEMETRY EVENTS
+  # =========================================================
+  motionEvents:
+    address: smartbin/{bin_id}/{sensor_id}/events
+    description: |
+      Full JSON-LD motion event records published by the producer.
+      These messages contain telemetry, fill level, sequence number,
+      timestamps, and semantic metadata.
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier (e.g. bin-01)
+
+      sensor_id:
+        description: Sensor identifier (e.g. pir-01)
+
+    messages:
+      motionEvent:
+        $ref: '#/components/messages/MotionEvent'
+
+  # =========================================================
+  # MQTT LAST WILL / STATUS
+  # =========================================================
+  eventsStatus:
+    address: smartbin/{bin_id}/{sensor_id}/events/status
+    description: |
+      Retained MQTT Last Will and Testament (LWT) status topic.
+      Indicates whether the producer is online or offline.
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+      sensor_id:
+        description: Sensor identifier
+
+    messages:
+      eventsStatus:
+        $ref: '#/components/messages/EventsStatus'
+
+  # =========================================================
+  # HOME ASSISTANT MOTION STATE
+  # =========================================================
+  motionState:
+    address: smartbin/{bin_id}/{sensor_id}/motion
+    description: |
+      Simplified motion state topic used by Home Assistant.
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+      sensor_id:
+        description: Sensor identifier
+
+    messages:
+      motionState:
+        $ref: '#/components/messages/MotionState'
+
+  # =========================================================
+  # HOME ASSISTANT FILL LEVEL
+  # =========================================================
+  fillLevelState:
+    address: smartbin/{bin_id}/fill-level/state
+    description: |
+      Current wastebin fill percentage published for
+      Home Assistant integration.
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+    messages:
+      fillLevelState:
+        $ref: '#/components/messages/FillLevelState'
+
+  # =========================================================
+  # HOME ASSISTANT MQTT DISCOVERY (MOTION)
+  # =========================================================
+  haDiscoveryMotion:
+    address: homeassistant/binary_sensor/{bin_id}_{sensor_id}/config
+    description: |
+      Home Assistant MQTT Discovery configuration payload
+      for the PIR motion sensor entity.
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+      sensor_id:
+        description: Sensor identifier
+
+    messages:
+      haDiscoveryMotion:
+        $ref: '#/components/messages/HaDiscoveryMotion'
+
+  # =========================================================
+  # HOME ASSISTANT MQTT DISCOVERY (FILL LEVEL)
+  # =========================================================
+  haDiscoveryFill:
+    address: homeassistant/sensor/{bin_id}_fill/config
+    description: |
+      Home Assistant MQTT Discovery configuration payload
+      for the fill level sensor entity.
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+    messages:
+      haDiscoveryFill:
+        $ref: '#/components/messages/HaDiscoveryFill'
+
+  # =========================================================
+  # BIN EMPTY COMMAND
+  # =========================================================
+  binCommand:
+    address: smartbin/{bin_id}/command
+    description: |
+      Commands sent by the API to control bin state,
+      such as emptying/resetting the fill level.
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+    messages:
+      binCommand:
+        $ref: '#/components/messages/BinCommand'
+
+  # =========================================================
+  # BIN STATUS
+  # =========================================================
+  binStatus:
+    address: smartbin/{bin_id}/status
+    description: |
+      Retained status messages published by the API
+      when bin state changes (e.g., emptied).
+
+    parameters:
+      bin_id:
+        description: Wastebin identifier
+
+    messages:
+      binStatus:
+        $ref: '#/components/messages/BinStatus'
+
+# ===========================================================
+# OPERATIONS
+# ===========================================================
+operations:
+
+  # ---------------------------------------------------------
+  # PRODUCER SEND OPERATIONS
+  # ---------------------------------------------------------
+  publishMotionEvent:
+    action: send
+    channel:
+      $ref: '#/channels/motionEvents'
+
+    summary: Producer publishes full JSON-LD telemetry events
+
+    description: |
+      Published whenever the PIR sensor detects motion.
+      Contains semantic observation data, timestamps,
+      item counts, and fill level information.
+
+  publishEventsStatus:
+    action: send
+    channel:
+      $ref: '#/channels/eventsStatus'
+
+    summary: Producer publishes retained online/offline status
+
+    description: |
+      MQTT Last Will and Testament topic.
+      Used to indicate producer availability.
+
+  publishMotionState:
+    action: send
+    channel:
+      $ref: '#/channels/motionState'
+
+    summary: Producer publishes simplified motion state
+
+    description: |
+      Used by Home Assistant to update the motion entity state.
+
+  publishFillLevelState:
+    action: send
+    channel:
+      $ref: '#/channels/fillLevelState'
+
+    summary: Producer publishes current fill level percentage
+
+    description: |
+      Used by Home Assistant to display the current
+      calculated fill level of the wastebin.
+
+  publishHaDiscoveryMotion:
+    action: send
+    channel:
+      $ref: '#/channels/haDiscoveryMotion'
+
+    summary: Producer publishes Home Assistant discovery config
+
+    description: |
+      Retained discovery payload allowing Home Assistant
+      to automatically create a motion sensor entity.
+
+  publishHaDiscoveryFill:
+    action: send
+    channel:
+      $ref: '#/channels/haDiscoveryFill'
+
+    summary: Producer publishes Home Assistant fill-level discovery config
+
+    description: |
+      Retained discovery payload allowing Home Assistant
+      to automatically create a fill-level sensor entity.
+
+  publishBinCommand:
+    action: send
+    channel:
+      $ref: '#/channels/binCommand'
+
+    summary: API publishes bin control commands
+
+    description: |
+      Sent when the API receives an empty-bin request.
+      Commands the producer to reset fill level and item count.
+
+  publishBinStatus:
+    action: send
+    channel:
+      $ref: '#/channels/binStatus'
+
+    summary: API publishes bin status updates
+
+    description: |
+      Retained status message published when bin state changes,
+      such as when a bin is marked as emptied.
+
+  # ---------------------------------------------------------
+  # CONSUMER RECEIVE OPERATIONS
+  # ---------------------------------------------------------
+  consumeMotionEvent:
+    action: receive
+    channel:
+      $ref: '#/channels/motionEvents'
+
+    summary: Consumer subscribes to telemetry events
+
+    description: |
+      The consumer receives motion events, enriches them
+      with ingest_time and pipeline_latency_ms,
+      and writes them to a JSONL file.
+
+# ===========================================================
+# COMPONENTS
+# ===========================================================
+components:
+
+  messages:
+
+    # =======================================================
+    # FULL TELEMETRY EVENT
+    # =======================================================
+    MotionEvent:
+      name: MotionEvent
+      contentType: application/json
+
+      payload:
+        type: object
+
+        required:
+          - "@context"
+          - "@id"
+          - "@type"
+          - event_time
+          - device_id
+          - event_type
+          - motion_state
+          - seq
+          - run_id
+          - mounted_on
+          - item_count
+          - fill_level
+
+        properties:
+
+          "@context":
+            type: object
+            description: JSON-LD semantic context mapping
+
+          "@id":
+            type: string
+            description: Unique observation identifier
+
+          "@type":
+            type: string
+            description: Observation type
+            example: sosa:Observation
+
+          event_time:
+            type: string
+            format: date-time
+            description: ISO 8601 UTC event timestamp
+
+          ingest_time:
+            type: string
+            format: date-time
+            description: Timestamp added by the consumer
+
+          device_id:
+            type: string
+            description: URI of the sensor that generated the event
+
+          event_type:
+            type: string
+            description: URI describing the observed property
+
+          motion_state:
+            type: string
+            description: Motion detection state
+            enum:
+              - detected
+              - clear
+
+          seq:
+            type: integer
+            description: Sequence number within this producer run
+
+          run_id:
+            type: string
+            description: UUID identifying the producer runtime session
+
+          mounted_on:
+            type: string
+            description: URI of the wastebin hosting the sensor
+
+          item_count:
+            type: integer
+            description: Running count of detected disposal events
+
+          fill_level:
+            type: integer
+            minimum: 0
+            maximum: 100
+            description: Calculated wastebin fill percentage
+
+          pipeline_latency_ms:
+            type: number
+            format: float
+            description: End-to-end pipeline latency in milliseconds
+
+    # =======================================================
+    # SIMPLE MOTION STATE
+    # =======================================================
+    MotionState:
+      name: MotionState
+      contentType: text/plain
+
+      payload:
+        type: string
+
+        enum:
+          - detected
+          - clear
+
+        description: |
+          Simplified motion state string used by Home Assistant.
+
+    # =======================================================
+    # FILL LEVEL STATE
+    # =======================================================
+    FillLevelState:
+      name: FillLevelState
+      contentType: text/plain
+
+      payload:
+        type: string
+        description: |
+          String representation of the current fill level percentage.
+
+    # =======================================================
+    # ONLINE / OFFLINE STATUS
+    # =======================================================
+    EventsStatus:
+      name: EventsStatus
+      contentType: text/plain
+
+      payload:
+        type: string
+
+        enum:
+          - online
+          - offline
+
+        description: |
+          Retained MQTT Last Will and Testament status message.
+
+    # =======================================================
+    # HOME ASSISTANT DISCOVERY - MOTION
+    # =======================================================
+    HaDiscoveryMotion:
+      name: HaDiscoveryMotion
+      contentType: application/json
+
+      payload:
+        type: object
+
+        properties:
+
+          name:
+            type: string
+
+          state_topic:
+            type: string
+
+          payload_on:
+            type: string
+
+          payload_off:
+            type: string
+
+          device_class:
+            type: string
+
+          unique_id:
+            type: string
+
+          off_delay:
+            type: integer
+
+          device:
+            type: object
+
+            properties:
+
+              identifiers:
+                type: array
+
+                items:
+                  type: string
+
+              name:
+                type: string
+
+              model:
+                type: string
+
+              manufacturer:
+                type: string
+
+    # =======================================================
+    # HOME ASSISTANT DISCOVERY - FILL LEVEL
+    # =======================================================
+    HaDiscoveryFill:
+      name: HaDiscoveryFill
+      contentType: application/json
+
+      payload:
+        type: object
+
+        properties:
+
+          name:
+            type: string
+
+          state_topic:
+            type: string
+
+          unit_of_measurement:
+            type: string
+
+          icon:
+            type: string
+
+          state_class:
+            type: string
+
+          unique_id:
+            type: string
+
+          device:
+            type: object
+
+            properties:
+
+              identifiers:
+                type: array
+
+                items:
+                  type: string
+
+              name:
+                type: string
+
+              model:
+                type: string
+
+              manufacturer:
+                type: string
+
+    # =======================================================
+    # BIN COMMAND
+    # =======================================================
+    BinCommand:
+      name: BinCommand
+      contentType: application/json
+
+      payload:
+        type: object
+
+        required:
+          - action
+          - emptied_at
+          - emptied_by
+
+        properties:
+
+          action:
+            type: string
+            enum:
+              - emptied
+            description: Command action type
+
+          emptied_at:
+            type: string
+            format: date-time
+            description: ISO 8601 UTC timestamp of emptying
+
+          emptied_by:
+            type: string
+            description: Who initiated the emptying
+
+    # =======================================================
+    # BIN STATUS
+    # =======================================================
+    BinStatus:
+      name: BinStatus
+      contentType: application/json
+
+      payload:
+        type: object
+
+        required:
+          - state
+          - emptied_at
+
+        properties:
+
+          state:
+            type: string
+            enum:
+              - emptied
+            description: Current bin state
+
+          emptied_at:
+            type: string
+            format: date-time
+            description: ISO 8601 UTC timestamp of last emptying
