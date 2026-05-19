@@ -94,6 +94,12 @@ The deploy button stores the changes or additions that we made in Node-RED and i
 ## Building flows
 
 **RQ4: Show a screenshot of your usage monitor flow. Label each node and explain what it does.**
+<img width="1012" height="347" alt="image" src="https://github.com/user-attachments/assets/a6bd063a-5ca9-4239-95d4-56407268c085" />
+
+We used two (2) MQTT nodes to either publish or recieve information from a topic `purple color`.
+We used a function node in order to implement a counter for events in a specific time window `orange color`.
+Lastly we used a switch as an if statement to check the payload and keep only the `detected` signals and a debug for testing purposes.
+
 
 **RQ5: In the counting Function node, you might have used flow.set and flow.get. What do these do? How is this similar to and different from a Python variable?**
 
@@ -143,6 +149,8 @@ flowchart LR
 
 **RQ13: What are the limitations of Node-RED that the lecture mentioned? Did you encounter any of them in this lab?**
 
+It becomes harder to manage many nodes in big projects. Also version control is weaker than code-based systems, and complex logic can become messy compared to programming. It can also be less suitable for performance-critical applications. In this lab, we did not encounter similar issues as the level of complexity of the lab was low enough for us to use a visual based approach and we were not aiming for the best performance possible.
+
 ---
 
 ## Export and reproducibility
@@ -150,6 +158,8 @@ flowchart LR
 **RQ14: You exported your flows as flows.json. A teammate imports it into their Node-RED instance. What will they need to configure manually? (Hint: think about the MQTT broker connection.)**
 
 **RQ15: Compare flows.json with a Python script in terms of version control. If two teammates edit the flow at the same time, what happens when they try to merge?**
+
+Structured programming for example a Python script allows for better vesion control than Node-RED. If two teammates were to edit the flow at the same time data loss could occur because everything is stored in a signle JSON file.
 
 ---
 
