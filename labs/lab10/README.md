@@ -9,7 +9,7 @@
 ### Directory Structure
 
 ```
-lab09/
+lab10/
 ├── README.md
 ├── requirements.txt
 ├── asyncapi.yml
@@ -28,6 +28,9 @@ lab09/
 │   ├── environment.jsonld
 │   ├── sensor.jsonld
 │   └── wastebin.jsonld
+├── flows.json
+├── screenshots/
+│  
 └── src/
     ├── api.py
     ├── consumer.py
@@ -37,7 +40,6 @@ lab09/
         ├── interpreter.py
         └── sampler.py```
 ``` 
-
 ### Run
 
 **Start the MQTT broker, API, Producer and Consumer:**
@@ -45,141 +47,85 @@ lab09/
 docker compose up --build 
 ```
 
+### Node-RED Setup
 
+**Install Node-RED on your Raspberry Pi**
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
  
-### Sensor Architecture
-```mermaid
-flowchart LR
-    PIR --> producer --> MQTT_in[MQTT]
-    
-    MQTT_in --> consumer["consumer (JSONL)"]
-    
-    MQTT_in --> vs1["virtual sensor<br>(rules: usage level)"]
-    vs1 --> MQTT_out1[MQTT] --> HA1[HA]
-    
-    MQTT_in --> vs2["virtual sensor<br>(ML: busy predictor)"]
-    vs2 --> MQTT_out2[MQTT] --> HA2[HA]
-                                   
 ```
 
-### Usage limits 
+**Start Node-RED**
+```bash
+node-red-start
 
-| Usage Level | Count Range | Code Condition | System Status |
-| --- | --- | --- | --- |
-| **Idle** | 0 | `count == 0` | Inactive / Standby |
-| **Low** | 1 – 3 | `0 < count <= 3` | Light usage |
-| **Medium** | 4 – 10 | `3 < count <= 10` | Moderate usage |
-| **High** | 11+ | `count > 10` | Heavy usage / Peak load |
----
+```
 
-### Train the machine learning model 
-```python 
-python train_model.py 
-``` 
+**To view Node-RED editor visit: `http://<your-pi-ip>:1880`**
 
-### Classification results 
-| Class / Metric | Precision | Recall | F1-Score | Support |
-| :--- | :---: | :---: | :---: | :---: |
-| **busy** | 0.84 | 0.94 | 0.89 | 34 |
-| **quiet** | 0.98 | 0.95 | 0.96 | 110 |
-| **accuracy** | — | — | 0.94 | 144 |
-| **macro avg** | 0.91 | 0.94 | 0.93 | 144 |
-| **weighted avg** | 0.95 | 0.94 | 0.95 | 144 |
 
-![alt text](image-1.png)
 
 ## Part B
 
-## Rule-based virtual sensor
+## Getting started
 
-**RQ1: What thresholds did you use for idle/low/medium/high? How did you decide on these values?**
-We set 0for idle,3 for low,10 for medium and greater than 10 for high. Because of the size of our bin we decided to lower the thresholds.
-
-
-**RQ2: What window size did you choose and why? What happens if you make it too short (e.g., 1 minute) or too long (e.g., 60 minutes)?**
-We chose to set the window size at 10 minutes. If it is too short the ml will reach to a decision based on single events meaning we won't know the true usage intensity of the bin. Likewise if it is too long because of the extended size we will lost meaningful data like the peak hour.
+**RQ1: How does Node-RED differ from writing a Python script? What is the “unit of work” in each? (In Python it is a function or a class. In Node-RED it is…?)**
 
 
-**RQ3: How does the rolling window implementation (the deque) relate to what the lecture described as CEP windowed operators?**
-A deque is the physical memory structure (a sliding window) that allows your system to perform Complex Event Processing (CEP) without running out of memory.
+
+**RQ2: What is the Node-RED message object? What is msg.payload and why does every node use it?**
 
 
-**RQ4: What would you need to change if you wanted to add a new level (e.g., “critical” for bins that might overflow)?**
-We need to change thresholds in the virtual sensor rules file.For example we will limit high between 10 and 15 and set critical for greater than 15.
+
+**RQ3: What does the Deploy button do? Why do you need to click it after making changes?**
+
 
 ---
 
-## ML virtual sensor
+## Building flows
 
-**RQ5: What features did you use for the classifier? Why these features?**
-1.`hour`: At night bins are not used that often also bins by a cafeteria might be busier during launch hours.
-2.`day_of_week`: In many settings, for example in a university, bins will be busier on weekdays.
-3.`is_weekend`: This is another parameter to alert us if its the weekend to expect less busy usage.
+**RQ4: Show a screenshot of your usage monitor flow. Label each node and explain what it does.**
 
-**RQ6: Show the classification report from training. What is the accuracy? Which class (busy/quiet) is harder to predict?**
-| Class    | Precision | Recall | F1-Score | Support |
-|----------|------------|--------|-----------|---------|
-| busy     | 0.84       | 0.94   | 0.89      | 34      |
-| quiet    | 0.98       | 0.95   | 0.96      | 110     |
-| accuracy |            |        | 0.94      | 144     |
+**RQ5: In the counting Function node, you might have used flow.set and flow.get. What do these do? How is this similar to and different from a Python variable?**
 
-The accuracy is 94% which is a very good result. We can see from the result that busy is harder to predict.
+**RQ6: How does the Switch node compare to a Python if statement? What advantages does the visual version have?**
 
-**RQ7: Why did we use a Random Forest classifier? Could you use a different model? What would change?**
-
-Random Forest allows for many decision trees to vote together and it also handles non-linear patterns better than other models, but we could achieve a similar result with a different model.
-
-**RQ8: The training data is synthetic. What would change if you used real motion data collected over several weeks? What patterns might emerge that the synthetic data misses?**
-
-We are not able to predict event outliers such as a university event which would attract a lot of people or a public holiday which would render our bins less busy.
-
-**RQ9: The model publishes a confidence score alongside the prediction. Why is this useful? What should a consumer do if confidence is low (e.g., 55%)?**
-
-As predictions are binary for example `quiet` or `busy` there is always a degree of uncertainty within that prediction. A human intervention based on the prediction's confidence score is needed to achieve better results, it can point to the need of using a different model.
+**RQ7: You built a branching flow (count → publish + alert if high). In Python, this would be an if-else block. In Node-RED, it is visible wiring. Which is easier to understand at a glance? Which is easier to test?**
 
 ---
 
-## Comparison
+## Integration
 
-**RQ10: Give one scenario where the rule-based sensor and the ML sensor disagree. Which one would you trust more in that scenario, and why?**
-During some special event, where the use of the bin is above the usual levels, the machine learning sensor would predict a much lower than actual value. The rule based sensor takes in the real data and is much more trustworthy. 
+**RQ8: Your Python consumer and your Node-RED flow both subscribe to the same MQTT topic. How is this possible? Do they interfere with each other?**
 
-**RQ11: The rule-based sensor reacts to the present. The ML sensor predicts the future. Give one use case where each is more useful.**
-If we desire to know the actual usage we are seeing on the bin so that we use that on a digital dashboard the rule based sensor is the ideal choise. If we want to predict future usage so that we schedule clean up trips, the machine learning sensor is the more viable choise. 
+**RQ9: You could build the usage monitor as a Python script (Lab 09) or as a Node-RED flow (this lab). Compare the two approaches: lines of code vs number of nodes, ease of modification, ease of testing, who can work with each.**
 
-**RQ12: If motion patterns changed tomorrow (e.g., the bin was moved to a new location), which sensor would adapt first? What would you need to do for the other?**
-The sensor that would change at once would be the rule based sensor. In order to fit the machine learning sensor to the new data, we would need to retrain it. 
+**RQ10: Could Node-RED replace your Python producer (the script that reads the PIR sensor)? Why or why not?**
 
 ---
 
-## Architecture
+## Node-RED in the ecosystem
 
-**RQ13: You added two new processing components to your system without modifying the producer or consumer. How did the pub/sub architecture make this possible?**
-The asychronous publisher subscriber architecture makes possible easy new component integration. The publishers that already existed don't need to know about the new components while the compomenets can use the data they produce freely. 
+**RQ11: Where does Node-RED fit in your overall system architecture? Draw or describe how it sits alongside the producer, consumer, Home Assistant, and REST API.**
 
-**RQ14: Both virtual sensors publish to MQTT. Could a third virtual sensor subscribe to their output and combine them? Give an example.**
-A third sensor could subscribe to their output and compare them in order to give the accuracy of the machine learning sensor. In low accuracy situations it could send a warning that would alert a human handler of a needed model retrain. 
+**RQ12: A facilities manager (non-programmer) wants to add a new rule: “if no motion is detected for 6 hours during business hours, mark the bin as possibly blocked.” Could they build this in Node-RED without help? What nodes would they need?**
 
-**RQ15: Show a screenshot with the raw motion sensor, usage intensity, and activity prediction all visible.** 
-![alt text](image.png)
+**RQ13: What are the limitations of Node-RED that the lecture mentioned? Did you encounter any of them in this lab?**
+
+---
+
+## Export and reproducibility
+
+**RQ14: You exported your flows as flows.json. A teammate imports it into their Node-RED instance. What will they need to configure manually? (Hint: think about the MQTT broker connection.)**
+
+**RQ15: Compare flows.json with a Python script in terms of version control. If two teammates edit the flow at the same time, what happens when they try to merge?**
 
 ---
 
 ## Reflection
 
-**RQ16: In the DIKW pyramid, where does the raw motion event sit? Where does the usage level sit? Where does the prediction sit? What moved the data up each level?**
+**RQ16: After building the same logic in Python (Lab 09) and Node-RED (this lab), which did you find faster to build? Which would you trust more in production? Why?**
 
-Raw motion event sits at the Data level, GPIO pin goes HIGH, single MQTT pulse, all have no meaning.
-Fill level (usage) sits at Information.
-ML prediction sits at Knowledge.
-What moved it up: Data became Information through aggregation and context and information became Knowledge through pattern learning and generalisation.
-Information became Knowledge through pattern learning and generalisation.
+**RQ17: The lecture argued that low-code platforms let more people contribute to the system. After this lab, do you agree? Who in your project team could use Node-RED that could not write the Python equivalent?**
 
-**RQ17: In your own words, what is a virtual sensor? How does it differ from a physical sensor?**
-
-A virtual sensor provides a level of translation or processing on information, oftentimes obtained by physical sensors, that makes it more legible by human operators or more useful for other applications.
-
-**RQ18: If you had access to additional sensors (temperature, fill level, noise), what virtual sensor could you build by combining them? Describe the inputs, the logic, and the output.**
-
-We would take into account fill level,noise, usage intensity and some visual inputs to determine if the space near the bins needs cleaning in case of an event like concert, local festival or charity events like marathons.
-
+**RQ18: If you were designing the Smart Wastebin system from scratch, which parts would you build in Python and which in Node-RED? Explain your reasoning.**
