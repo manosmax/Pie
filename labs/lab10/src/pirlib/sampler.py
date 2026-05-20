@@ -11,7 +11,7 @@ class PirSampler:
         self.pin = pin
         self._stub = not _GPIO_AVAILABLE
         if not self._stub:
-            lgpio.gpio_claim_input(_handle, self.pin)
+            lgpio.gpio_claim_input(_handle, self.pin,lgpio.SET_PULL_DOWN)
 
     def read(self) -> bool:
         if self._stub:
