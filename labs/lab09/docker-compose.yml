@@ -5,6 +5,13 @@ services:
       - "1883:1883"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - smartbin-net
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$$SYS/#' -C 1 -W 3"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   producer:
     build: .
@@ -13,12 +20,14 @@ services:
       - /dev/gpiochip0:/dev/gpiochip0
     volumes:
       - ./data:/app/data
+    networks:
+      - smartbin-net
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
 
   consumer:
     build: .
-
     command: >
       python consumer.py
       --verbose
@@ -27,8 +36,11 @@ services:
       --out /app/data/motion_events.jsonl
     volumes:
       - ./data:/app/data
+    networks:
+      - smartbin-net
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
 
   api:
     build: .
@@ -39,25 +51,36 @@ services:
       - ./data:/app/data
     environment:
       - MQTT_BROKER=mosquitto
+    networks:
+      - smartbin-net
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
 
   virtual_sensor_rules:
     build: .
     command: python virtual_sensor_rules.py --broker mosquitto
+    networks:
+      - smartbin-net
     depends_on:
-      - mosquitto
-      - producer
+      mosquitto:
+        condition: service_healthy
+      producer:
+        condition: service_started
 
   virtual_sensor_ml:
     build: .
     command: python virtual_sensor_ml.py --broker mosquitto
-    # FIX: mount models_v_s so a locally retrained model can be used
-    #      without rebuilding the image.  The image already contains a
-    #      baked model (from `RUN python train_model.py` in Dockerfile)
-    #      so this is optional but convenient.
     volumes:
       - ./models_v_s:/app/models_v_s
+    networks:
+      - smartbin-net
     depends_on:
-      - mosquitto
-      - producer
+      mosquitto:
+        condition: service_healthy
+      producer:
+        condition: service_started
+
+networks:
+  smartbin-net:
+    driver: bridge
