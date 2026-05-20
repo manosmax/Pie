@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict
 
 class PirInterpreter:
-    def __init__(self, cooldown_s: float = 0.0, min_high_s: float = 0.0):
+    def __init__(self, cooldown_s: float = 10.0, min_high_s: float = 1.0):
         self.cooldown_s = cooldown_s
         self.min_high_s = min_high_s
 
@@ -24,7 +24,6 @@ class PirInterpreter:
             self.high_start_t = None
             self.emitted_for_this_high = False
 
-        # If currently HIGH and we haven't emitted yet, check min_high and cooldown
         if raw and (not self.emitted_for_this_high) and (self.high_start_t is not None):
             high_for = t - self.high_start_t
             if high_for >= self.min_high_s:
