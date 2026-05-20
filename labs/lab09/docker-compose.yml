@@ -18,8 +18,7 @@ services:
     networks:
       - smartbin-net
     depends_on:
-      mosquitto:
-        condition: service_healthy
+      - mosquitto
 
   consumer:
     build: .
@@ -34,8 +33,7 @@ services:
     networks:
       - smartbin-net
     depends_on:
-      mosquitto:
-        condition: service_healthy
+      - mosquitto
 
   api:
     build: .
@@ -49,8 +47,7 @@ services:
     networks:
       - smartbin-net
     depends_on:
-      mosquitto:
-        condition: service_healthy
+      - mosquitto
 
   virtual_sensor_rules:
     build: .
@@ -58,10 +55,8 @@ services:
     networks:
       - smartbin-net
     depends_on:
-      mosquitto:
-        condition: service_healthy
-      producer:
-        condition: service_started
+      - mosquitto
+      - producer
 
   virtual_sensor_ml:
     build: .
@@ -71,10 +66,8 @@ services:
     networks:
       - smartbin-net
     depends_on:
-      mosquitto:
-        condition: service_healthy
-      producer:
-        condition: service_started
+      - mosquitto
+      - producer
 
 networks:
   smartbin-net:
