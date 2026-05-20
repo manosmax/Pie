@@ -12,13 +12,20 @@ services:
     devices:
       - /dev/gpiochip0:/dev/gpiochip0
     volumes:
-      - ./data:/app/data       
+      - ./data:/app/data
     depends_on:
       - mosquitto
 
   consumer:
     build: .
-    command: python consumer.py --verbose --host mosquitto --out /app/data/motion_events.jsonl
+    # FIX: --topic now matches the topic producer.py publishes to.
+    # FIX: --out is now handled by consumer.py's argparse (was missing before).
+    command: >
+      python consumer.py
+      --verbose
+      --host mosquitto
+      --topic smartbin/bin-01/pir-01/events
+      --out /app/data/motion_events.jsonl
     volumes:
       - ./data:/app/data
     depends_on:
@@ -30,9 +37,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./data:/app/data        
+      - ./data:/app/data
     environment:
-      - MQTT_BROKER=mosquitto  
+      - MQTT_BROKER=mosquitto
     depends_on:
       - mosquitto
 
@@ -41,11 +48,17 @@ services:
     command: python virtual_sensor_rules.py --broker mosquitto
     depends_on:
       - mosquitto
-      - producer               
+      - producer
 
   virtual_sensor_ml:
     build: .
     command: python virtual_sensor_ml.py --broker mosquitto
+    # FIX: mount models_v_s so a locally retrained model can be used
+    #      without rebuilding the image.  The image already contains a
+    #      baked model (from `RUN python train_model.py` in Dockerfile)
+    #      so this is optional but convenient.
+    volumes:
+      - ./models_v_s:/app/models_v_s
     depends_on:
       - mosquitto
-      - producer               
+      - producer
