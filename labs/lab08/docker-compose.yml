@@ -18,8 +18,6 @@ services:
 
   consumer:
     build: .
-    # FIX: --topic now matches the topic producer.py publishes to.
-    # FIX: --out is now handled by consumer.py's argparse (was missing before).
     command: >
       python consumer.py
       --verbose
