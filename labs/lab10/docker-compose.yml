@@ -5,6 +5,8 @@ services:
       - "1883:1883"
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - smartbin-net
 
   producer:
     build: .
@@ -13,6 +15,8 @@ services:
       - /dev/gpiochip0:/dev/gpiochip0
     volumes:
       - ./data:/app/data
+    networks:
+      - smartbin-net
     depends_on:
       - mosquitto
 
@@ -26,6 +30,8 @@ services:
       --out /app/data/motion_events.jsonl
     volumes:
       - ./data:/app/data
+    networks:
+      - smartbin-net
     depends_on:
       - mosquitto
 
@@ -38,12 +44,16 @@ services:
       - ./data:/app/data
     environment:
       - MQTT_BROKER=mosquitto
+    networks:
+      - smartbin-net
     depends_on:
       - mosquitto
 
   virtual_sensor_rules:
     build: .
     command: python virtual_sensor_rules.py --broker mosquitto
+    networks:
+      - smartbin-net
     depends_on:
       - mosquitto
       - producer
@@ -53,6 +63,12 @@ services:
     command: python virtual_sensor_ml.py --broker mosquitto
     volumes:
       - ./models_v_s:/app/models_v_s
+    networks:
+      - smartbin-net
     depends_on:
       - mosquitto
       - producer
+
+networks:
+  smartbin-net:
+    driver: bridge
