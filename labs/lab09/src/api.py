@@ -95,12 +95,7 @@ def load_events(
     limit: int | None = None,
     sensor_uri: str | None = None,
 ) -> list:
-    """Load motion events, newest first.
 
-    FIX: filter parameter renamed to sensor_uri to reflect that device_id
-         in the JSONL is a full URI (e.g. urn:dev:team08:pir-01), not a
-         short ID.
-    """
     events = []
     if not os.path.exists(filepath):
         return events
@@ -146,20 +141,12 @@ def save_emptied_record(record: dict) -> None:
 
 
 def _uri_to_short_id(uri: str) -> str:
-    """Extract the last colon-separated segment of a URN.
 
-    e.g.  "urn:wastebin:bin-01"     → "bin-01"
-          "urn:dev:team08:pir-01"   → "pir-01"
-    """
     return uri.split(":")[-1]
 
 
 def _build_registries() -> tuple[dict, dict]:
-    """Build in-memory registries keyed by short IDs.
 
-    FIX: previously the full URI was used as the dict key, so
-         /bins/bin-01 always returned 404.
-    """
     bins_reg: dict    = {}
     sensors_reg: dict = {}
 
@@ -294,7 +281,7 @@ emptied_parser.add_argument("limit", type=int, default=20)
 class BinList(Resource):
     @ns.marshal_list_with(bin_model)
     def get(self):
-        """List all registered bins."""
+        
         return list(bins_registry.values()), 200
 
 
@@ -303,7 +290,7 @@ class BinDetail(Resource):
     @ns.marshal_with(bin_model)
     @ns.response(404, "Bin not found")
     def get(self, bin_id):
-        """Get details for a specific bin."""
+        
         bin_data = find_bin(bin_id)
         if not bin_data:
             api.abort(404, f"Bin '{bin_id}' not found")
@@ -315,7 +302,7 @@ class BinEvents(Resource):
     @ns.expect(events_parser)
     @ns.marshal_list_with(event_model)
     def get(self, bin_id):
-        """Get recent motion events for a bin."""
+        
         if not find_bin(bin_id):
             api.abort(404, f"Bin '{bin_id}' not found")
         args       = events_parser.parse_args()
@@ -432,7 +419,7 @@ class MQTTPublish(Resource):
 @nmqtt.route("/topics")
 class MqttTopics(Resource):
     def get(self):
-        """List all known MQTT topics and their last received message."""
+        
         with topic_lock:
             return {
                 "topic_count": len(topic_store),
@@ -444,7 +431,7 @@ class MqttTopics(Resource):
 class MQTTTopicDetail(Resource):
     @nmqtt.response(404, "Topic not found or no message received yet")
     def get(self, topic):
-        """Get the last received message for a specific MQTT topic."""
+       
         with topic_lock:
             if topic not in topic_store:
                 api.abort(404, f"No message received on topic '{topic}'")

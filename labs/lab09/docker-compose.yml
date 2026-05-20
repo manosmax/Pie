@@ -18,6 +18,7 @@ services:
 
   consumer:
     build: .
+
     command: >
       python consumer.py
       --verbose
@@ -51,6 +52,10 @@ services:
   virtual_sensor_ml:
     build: .
     command: python virtual_sensor_ml.py --broker mosquitto
+    # FIX: mount models_v_s so a locally retrained model can be used
+    #      without rebuilding the image.  The image already contains a
+    #      baked model (from `RUN python train_model.py` in Dockerfile)
+    #      so this is optional but convenient.
     volumes:
       - ./models_v_s:/app/models_v_s
     depends_on:
