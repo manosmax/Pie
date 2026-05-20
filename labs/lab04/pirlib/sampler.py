@@ -19,7 +19,7 @@ class PirSampler:
 
     def read(self) -> bool:
         if self._stub:
-            # Stub always returns False; replace with simulation logic if needed
+
             return False
         return bool(GPIO.input(self.pin))
 

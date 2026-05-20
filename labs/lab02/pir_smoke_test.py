@@ -1,7 +1,7 @@
 from gpiozero import MotionSensor
 from signal import pause
 
-# IMPORTANT: Use your chosen BCM GPIO pin here (example: 18)
+
 pir = MotionSensor(17)
 
 def motion_function():

@@ -28,10 +28,7 @@ def producer_loop(
     metrics: dict,
     stop_flag: dict,
 ) -> None:
-    """
-    Reads PIR samples, passes them through the interpreter, and enqueues
-    structured event records.  Drops the newest record when the queue is full
-    """
+
     run_id = str(uuid.uuid4())
     seq = 0
 
@@ -68,11 +65,7 @@ def consumer_loop(
     metrics: dict,
     stop_flag: dict,
 ) -> None:
-    """
-    Dequeues event records, enriches them with ingest_time and
-    pipeline_latency_ms, then writes one JSON object per line to the
-    output file.
-    """
+
     with open(out_path, "a", encoding="utf-8") as f:
         while not stop_flag["stop"] or not event_q.empty():
             try:

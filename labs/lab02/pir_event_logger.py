@@ -60,7 +60,7 @@ def main() -> None:
     args = p.parse_args()
     validate(args)
 
-    # ── init sensor + interpreter ─────────────────────────────────────
+
     try:
         sampler = PirSampler(args.pin)
     except Exception as exc:
@@ -69,7 +69,7 @@ def main() -> None:
 
     interp = PirInterpreter(cooldown_s=args.cooldown, min_high_s=args.min_high)
 
-    # ── open output file (append) ─────────────────────────────────────
+    # ── open output file
     out_path = Path(args.out)
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -79,7 +79,7 @@ def main() -> None:
         sampler.cleanup()
         sys.exit(1)
 
-    # ── session metadata ──────────────────────────────────────────────
+
     run_id  = str(uuid.uuid4())
     seq     = 0
     written = 0
@@ -107,7 +107,7 @@ def main() -> None:
 
                 record = {
 
-                    # ── required ──────────────────────────────────────
+                    # required
                     "seq":          seq,
                     "run_id":       run_id,
                     "device_id":    args.device_id,
@@ -117,7 +117,7 @@ def main() -> None:
                     "ingest_time":  posix_to_iso(ingest_t),
                     "latency_ms":   round((ingest_t - now) * 1_000, 3),
 
-                    # ── recommended ───────────────────────────────────
+                    # recommended
                     "pin":               args.pin,
                     "sample_interval_s": args.sample_interval,
                     "cooldown_s":        args.cooldown,
