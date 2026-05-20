@@ -7,11 +7,6 @@ services:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     networks:
       - smartbin-net
-    healthcheck:
-      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$$SYS/#' -C 1 -W 3"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   producer:
     build: .
