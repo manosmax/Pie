@@ -1,20 +1,3 @@
-"""
-Smart Wastebin — REST API
-================================
-Flask-RESTX API that:
-  • Reads bin / sensor metadata from JSON-LD model files
-  • Reads persisted motion events from JSONL
-  • Publishes bin-empty commands to the MQTT broker
-
-FIX: _build_registries() now extracts short IDs (e.g. "bin-01") from full
-     URIs (e.g. "urn:wastebin:bin-01") as dict keys, so /bins/bin-01 works.
-FIX: get_sensor_for_bin() compares mounted_on URI against the bin's full URI,
-     not the short ID, so the cross-reference resolves correctly.
-FIX: Removed broken WERKZEUG_RUN_MAIN guard — debug=False means no reloader.
-FIX: DATA_DIR and MODELS_DIR paths are resolved relative to __file__ which
-     in Docker sits at /app/api.py, giving the correct /app/data and
-     /app/models paths.
-"""
 
 import json
 import os
@@ -24,9 +7,9 @@ from datetime import datetime, timezone
 from flask import Flask
 from flask_restx import Api, Resource, fields, reqparse
 
-# ---------------------------------------------------------------------------
+
 # Application & MQTT setup
-# ---------------------------------------------------------------------------
+
 
 app = Flask(__name__)
 
@@ -40,7 +23,7 @@ topic_lock  = threading.Lock()
 
 
 def on_message(client, userdata, msg):
-    """Store every message received by the API client."""
+
     with topic_lock:
         topic_store[msg.topic] = {
             "topic":     msg.topic,
@@ -69,8 +52,7 @@ mqtt_client.on_message    = on_message
 mqtt_client.on_connect    = on_connect
 mqtt_client.on_disconnect = on_disconnect
 
-# FIX: removed the broken WERKZEUG_RUN_MAIN guard; debug=False means the
-#      reloader never runs, so there is only one process and one MQTT client.
+
 try:
     mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
     mqtt_client.reconnect_delay_set(min_delay=1, max_delay=30)
@@ -78,9 +60,8 @@ try:
 except Exception as e:
     print(f"[MQTT] Initial connection error: {e}")
 
-# ---------------------------------------------------------------------------
+
 # Flask-RESTX
-# ---------------------------------------------------------------------------
 
 api = Api(
     app,
@@ -93,8 +74,7 @@ ns      = api.namespace("bins",    description="Wastebin operations")
 nsensor = api.namespace("sensors", description="Sensor operations")
 nmqtt   = api.namespace("mqtt",    description="MQTT operations")
 
-# FIX: paths are now relative to __file__ = /app/api.py in Docker,
-#      so these resolve to /app/data and /app/models correctly.
+
 _BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR     = os.path.join(_BASE_DIR, "data")
 MODELS_DIR   = os.path.join(_BASE_DIR, "models")
@@ -102,9 +82,8 @@ EVENTS_FILE  = os.path.join(DATA_DIR, "motion_events.jsonl")
 EMPTIED_FILE = os.path.join(DATA_DIR, "emptied_records.jsonl")
 
 
-# ---------------------------------------------------------------------------
+
 # Data helpers
-# ---------------------------------------------------------------------------
 
 def load_json(filepath: str) -> dict:
     with open(filepath, "r", encoding="utf-8") as f:
@@ -196,7 +175,7 @@ def _build_registries() -> tuple[dict, dict]:
     if os.path.exists(wastebin_path):
         wb = load_json(wastebin_path)
         bin_uri   = wb.get("@id", "unknown")
-        # FIX: use short ID as key
+
         short_id  = _uri_to_short_id(bin_uri)
         raw_status = wb.get("pipeline:status", "unknown")
         bins_reg[short_id] = {
@@ -210,7 +189,7 @@ def _build_registries() -> tuple[dict, dict]:
     if os.path.exists(sensor_path):
         s = load_json(sensor_path)
         sensor_uri  = s.get("@id", "unknown")
-        # FIX: use short ID as key
+
         short_sid   = _uri_to_short_id(sensor_uri)
         raw_status  = s.get("pipeline:status", "unknown")
         mounted_uri = s.get("sosa:isHostedBy", "")
@@ -219,8 +198,6 @@ def _build_registries() -> tuple[dict, dict]:
             "uri":        sensor_uri,
             "type":       "PIR",
             "model":      s.get("model", ""),
-            # FIX: store the full mounted_on URI so get_sensor_for_bin can
-            #      compare URIs to URIs rather than URI to short ID.
             "mounted_on": mounted_uri,
             "status":     raw_status.get("@value", "unknown") if isinstance(raw_status, dict) else raw_status,
         }
@@ -240,11 +217,7 @@ def find_sensor(sensor_id: str) -> dict | None:
 
 
 def get_sensor_for_bin(bin_id: str) -> str | None:
-    """Return the short sensor ID whose host URI matches this bin's URI.
 
-    FIX: previously compared mounted_on URI against the short bin_id string,
-         which never matched.
-    """
     bin_entry = bins_registry.get(bin_id)
     if not bin_entry:
         return None
@@ -256,7 +229,7 @@ def get_sensor_for_bin(bin_id: str) -> str | None:
 
 
 def get_sensor_uri_for_bin(bin_id: str) -> str | None:
-    """Return the full sensor URI for filtering JSONL events."""
+
     short_sid = get_sensor_for_bin(bin_id)
     if not short_sid:
         return None
@@ -267,9 +240,7 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-# ---------------------------------------------------------------------------
 # Swagger models
-# ---------------------------------------------------------------------------
 
 bin_model = api.model("Bin", {
     "id":       fields.String(required=True),
@@ -317,9 +288,7 @@ emptied_parser = reqparse.RequestParser()
 emptied_parser.add_argument("limit", type=int, default=20)
 
 
-# ---------------------------------------------------------------------------
 # Endpoints
-# ---------------------------------------------------------------------------
 
 @ns.route("/")
 class BinList(Resource):
@@ -359,12 +328,7 @@ class BinEmpty(Resource):
     @ns.expect(emptied_input_model)
     @ns.marshal_with(emptied_model, code=200)
     def post(self, bin_id):
-        """
-        Mark a bin as emptied.
 
-        Publishes an MQTT command so the producer resets fill level and
-        item count to zero, then persists the emptied record locally.
-        """
         if not find_bin(bin_id):
             api.abort(404, f"Bin '{bin_id}' not found")
 
@@ -487,9 +451,8 @@ class MQTTTopicDetail(Resource):
             return topic_store[topic], 200
 
 
-# ---------------------------------------------------------------------------
+
 # Run
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=5000)

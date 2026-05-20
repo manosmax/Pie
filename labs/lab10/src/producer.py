@@ -156,7 +156,6 @@ def publisher_loop(
         if reason_code == 0:
             print("[PUB] Connected to MQTT Broker")
             send_discovery(client, args.bin_id, args.sensor_id, ha_pir_topic, ha_fill_topic)
-            # Subscribe to wildcard to match API's topic format (smartbin/urn:wastebin:{bin_id}/command)
             client.subscribe("smartbin/+/command", qos=qos)
             print(f"[PUB] Subscribed to smartbin/+/command (matches: {command_topic})")
         else:
@@ -168,7 +167,6 @@ def publisher_loop(
             if payload.get("action") == "emptied":
                 print(f"[PUB] Received emptied command: {payload}")
                 state["item_count"] = 0
-                # Publish reset fill_level immediately to Home Assistant
                 client.publish(ha_fill_topic, "0", qos=qos)
                 print(f"[PUB] Reset item_count and fill_level to 0, published to {ha_fill_topic}")
         except json.JSONDecodeError:

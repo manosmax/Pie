@@ -15,9 +15,9 @@ servers:
 
 channels:
 
-  # =========================================================
+
   # FULL TELEMETRY EVENTS
-  # =========================================================
+
   motionEvents:
     address: smartbin/{bin_id}/{sensor_id}/events
     description: |
@@ -36,9 +36,9 @@ channels:
       motionEvent:
         $ref: '#/components/messages/MotionEvent'
 
-  # =========================================================
+
   # MQTT LAST WILL / STATUS
-  # =========================================================
+
   eventsStatus:
     address: smartbin/{bin_id}/{sensor_id}/events/status
     description: |
@@ -56,9 +56,9 @@ channels:
       eventsStatus:
         $ref: '#/components/messages/EventsStatus'
 
-  # =========================================================
+
   # HOME ASSISTANT MOTION STATE
-  # =========================================================
+
   motionState:
     address: smartbin/{bin_id}/{sensor_id}/motion
     description: |
@@ -75,9 +75,9 @@ channels:
       motionState:
         $ref: '#/components/messages/MotionState'
 
-  # =========================================================
+
   # HOME ASSISTANT FILL LEVEL
-  # =========================================================
+
   fillLevelState:
     address: smartbin/{bin_id}/fill-level/state
     description: |
@@ -92,9 +92,9 @@ channels:
       fillLevelState:
         $ref: '#/components/messages/FillLevelState'
 
-  # =========================================================
+
   # HOME ASSISTANT MQTT DISCOVERY (MOTION)
-  # =========================================================
+
   haDiscoveryMotion:
     address: homeassistant/binary_sensor/{bin_id}_{sensor_id}/config
     description: |
@@ -112,9 +112,9 @@ channels:
       haDiscoveryMotion:
         $ref: '#/components/messages/HaDiscoveryMotion'
 
-  # =========================================================
+
   # HOME ASSISTANT MQTT DISCOVERY (FILL LEVEL)
-  # =========================================================
+
   haDiscoveryFill:
     address: homeassistant/sensor/{bin_id}_fill/config
     description: |
@@ -129,9 +129,9 @@ channels:
       haDiscoveryFill:
         $ref: '#/components/messages/HaDiscoveryFill'
 
-  # =========================================================
+
   # BIN EMPTY COMMAND
-  # =========================================================
+
   binCommand:
     address: smartbin/{bin_id}/command
     description: |
@@ -146,9 +146,9 @@ channels:
       binCommand:
         $ref: '#/components/messages/BinCommand'
 
-  # =========================================================
+
   # BIN STATUS
-  # =========================================================
+
   binStatus:
     address: smartbin/{bin_id}/status
     description: |
@@ -163,14 +163,14 @@ channels:
       binStatus:
         $ref: '#/components/messages/BinStatus'
 
-# ===========================================================
+
 # OPERATIONS
-# ===========================================================
+
 operations:
 
-  # ---------------------------------------------------------
+
   # PRODUCER SEND OPERATIONS
-  # ---------------------------------------------------------
+
   publishMotionEvent:
     action: send
     channel:
@@ -259,9 +259,9 @@ operations:
       Retained status message published when bin state changes,
       such as when a bin is marked as emptied.
 
-  # ---------------------------------------------------------
+
   # CONSUMER RECEIVE OPERATIONS
-  # ---------------------------------------------------------
+
   consumeMotionEvent:
     action: receive
     channel:
@@ -274,16 +274,16 @@ operations:
       with ingest_time and pipeline_latency_ms,
       and writes them to a JSONL file.
 
-# ===========================================================
+
 # COMPONENTS
-# ===========================================================
+
 components:
 
   messages:
 
-    # =======================================================
+
     # FULL TELEMETRY EVENT
-    # =======================================================
+
     MotionEvent:
       name: MotionEvent
       contentType: application/json
@@ -372,9 +372,9 @@ components:
             format: float
             description: End-to-end pipeline latency in milliseconds
 
-    # =======================================================
+
     # SIMPLE MOTION STATE
-    # =======================================================
+
     MotionState:
       name: MotionState
       contentType: text/plain
@@ -389,9 +389,9 @@ components:
         description: |
           Simplified motion state string used by Home Assistant.
 
-    # =======================================================
+
     # FILL LEVEL STATE
-    # =======================================================
+
     FillLevelState:
       name: FillLevelState
       contentType: text/plain
@@ -401,9 +401,9 @@ components:
         description: |
           String representation of the current fill level percentage.
 
-    # =======================================================
+
     # ONLINE / OFFLINE STATUS
-    # =======================================================
+
     EventsStatus:
       name: EventsStatus
       contentType: text/plain
@@ -418,9 +418,9 @@ components:
         description: |
           Retained MQTT Last Will and Testament status message.
 
-    # =======================================================
+
     # HOME ASSISTANT DISCOVERY - MOTION
-    # =======================================================
+
     HaDiscoveryMotion:
       name: HaDiscoveryMotion
       contentType: application/json
@@ -471,9 +471,9 @@ components:
               manufacturer:
                 type: string
 
-    # =======================================================
+
     # HOME ASSISTANT DISCOVERY - FILL LEVEL
-    # =======================================================
+
     HaDiscoveryFill:
       name: HaDiscoveryFill
       contentType: application/json
@@ -521,9 +521,9 @@ components:
               manufacturer:
                 type: string
 
-    # =======================================================
+
     # BIN COMMAND
-    # =======================================================
+
     BinCommand:
       name: BinCommand
       contentType: application/json
@@ -553,9 +553,9 @@ components:
             type: string
             description: Who initiated the emptying
 
-    # =======================================================
+
     # BIN STATUS
-    # =======================================================
+
     BinStatus:
       name: BinStatus
       contentType: application/json

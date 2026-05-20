@@ -1,16 +1,3 @@
-"""
-Smart Wastebin — MQTT Consumer
-================================
-Subscribes to the motion-event topic published by the producer,
-enriches every record with ingest_time + pipeline_latency_ms,
-and appends it to a JSONL file.
-
-FIX: Previous file was erroneously a second producer (used PirSampler /
-PirInterpreter, touched GPIO).  Real consumer has no hardware dependency.
-FIX: Added --out argument that docker-compose.yml was already passing.
-FIX: Added ingest_time and pipeline_latency_ms enrichment that the
-     AsyncAPI spec promised but was never implemented.
-"""
 
 import argparse
 import json
@@ -23,9 +10,7 @@ import paho.mqtt.client as mqtt
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 def utc_now_iso() -> str:
     return (
@@ -36,13 +21,11 @@ def utc_now_iso() -> str:
 
 
 def parse_iso(ts: str) -> datetime:
-    """Parse an ISO-8601 timestamp that may end in Z or +00:00."""
+
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
 
-# ---------------------------------------------------------------------------
 # MQTT callbacks
-# ---------------------------------------------------------------------------
 
 def make_on_connect(args: argparse.Namespace):
     def on_connect(client, userdata, flags, reason_code, properties):
@@ -57,18 +40,18 @@ def make_on_connect(args: argparse.Namespace):
 
 def make_on_message(args: argparse.Namespace):
     def on_message(client, userdata, msg):
-        # --- Deserialise ---
+
         try:
             record = json.loads(msg.payload.decode("utf-8", errors="replace"))
         except json.JSONDecodeError as exc:
             logger.warning("[CONSUMER] Bad JSON on %s: %s", msg.topic, exc)
             return
 
-        # --- Enrich: ingest_time ---
+
         ingest_ts = utc_now_iso()
         record["ingest_time"] = ingest_ts
 
-        # --- Enrich: pipeline_latency_ms ---
+
         event_ts_str = record.get("event_time")
         if event_ts_str:
             try:
@@ -79,7 +62,7 @@ def make_on_message(args: argparse.Namespace):
             except Exception as exc:
                 logger.debug("[CONSUMER] Could not compute latency: %s", exc)
 
-        # --- Persist ---
+
         os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
         with open(args.out, "a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
@@ -95,9 +78,7 @@ def make_on_message(args: argparse.Namespace):
     return on_message
 
 
-# ---------------------------------------------------------------------------
 # Entry point
-# ---------------------------------------------------------------------------
 
 def main() -> None:
     parser = argparse.ArgumentParser(

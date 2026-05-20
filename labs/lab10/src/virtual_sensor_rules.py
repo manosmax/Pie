@@ -15,13 +15,7 @@ event_lock = threading.Lock()
 
 
 def send_discovery(client, bin_id: str, publish_topic: str) -> None:
-    """
-    Publish MQTT Discovery config payloads so Home Assistant auto-creates
-    sensor entities for the usage level and motion event count.
 
-    Follows the same pattern as the PIR producer (Lab 07):
-      homeassistant/<domain>/<unique_id>/config
-    """
     device_info = {
         "identifiers": [bin_id],
         "name": f"Smart Waste Bin {bin_id}",
@@ -85,22 +79,7 @@ def on_disconnect(client, userdata, disconnect_flags=None, reason_code=None, pro
 
 
 def on_message(client, userdata, message):
-    """
-    Handle incoming motion-event messages from the PIR producer.
 
-    Producer payload is a JSON-LD Observation object, e.g.:
-    {
-        "@type": "sosa:Observation",
-        "motion_state": "detected",
-        "device_id": "urn:dev:team08:pir-01",
-        "seq": 42,
-        "fill_level": 12,
-        "item_count": 6,
-        ...
-    }
-    Only "detected" events are recorded; "clear" is never published to this
-    topic by the producer, but guarded here for safety.
-    """
     try:
         data = json.loads(message.payload.decode("utf-8", errors="replace"))
         if data.get("motion_state", "").lower() == "detected":
@@ -114,16 +93,7 @@ def on_message(client, userdata, message):
 
 
 def evaluate_usage(window_minutes: int = 10) -> tuple[str, int]:
-    """
-    Prune stale events and classify current usage intensity.
 
-    Thresholds
-    ----------
-    0 events        → idle
-    1 – 5 events    → low
-    6 – 15 events   → medium
-    16+ events      → high
-    """
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
     with event_lock:
