@@ -49,25 +49,6 @@ services:
     depends_on:
       - mosquitto
 
-  virtual_sensor_rules:
-    build: .
-    command: python virtual_sensor_rules.py --broker mosquitto
-    networks:
-      - smartbin-net
-    depends_on:
-      - mosquitto
-      - producer
-
-  virtual_sensor_ml:
-    build: .
-    command: python virtual_sensor_ml.py --broker mosquitto
-    volumes:
-      - ./models_v_s:/app/models_v_s
-    networks:
-      - smartbin-net
-    depends_on:
-      - mosquitto
-      - producer
 
 networks:
   smartbin-net:
