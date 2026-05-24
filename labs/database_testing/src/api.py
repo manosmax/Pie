@@ -17,10 +17,10 @@ All data served from SQLite (smartbin.db) via database.py.
 /sensors/<sensor_id>/events     GET  — PIR events for one sensor
 
 /mqtt/publish                   POST — publish a raw MQTT message
+/mqtt/subscribe                 POST — subscribe to an extra topic at runtime
 /mqtt/topics                    GET  — live in-memory snapshot (last msg per topic)
 /mqtt/topics/<path:topic>       GET  — last in-memory message for a specific topic
-/mqtt/topics/<path:topic>/clear DELETE — remove a topic from the in-memory store
-/mqtt/subscribe                 POST — subscribe the API client to an extra topic at runtime
+/mqtt/topics/<path:topic>       DELETE — remove topic from in-memory store
 /mqtt/messages                  GET  — ALL stored MQTT messages from DB (paginated)
 /mqtt/messages/<bin_id>         GET  — stored MQTT messages filtered by bin
 
@@ -50,6 +50,11 @@ from database import (
     QUERY_LEAST_HOUR,
     QUERY_WEEKLY_HEATMAP,
 )
+
+# ── utc_now_iso — MUST be defined before MQTT callbacks are registered ────────
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 # ── App & DB setup ────────────────────────────────────────────────────────────
 
@@ -85,7 +90,7 @@ def _extract_bin_id_from_topic(topic: str) -> str | None:
 
 def on_message(client, userdata, msg):
     payload_str = msg.payload.decode("utf-8", errors="replace")
-    ts = utc_now_iso()
+    ts = utc_now_iso()                          # safe — defined above
 
     # 1. Update in-memory snapshot (last message per topic)
     with topic_lock:
@@ -184,10 +189,6 @@ _bootstrap_registries()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
 def _row_to_dict(row) -> dict:
     return dict(row) if row else {}
 
@@ -270,7 +271,6 @@ emptied_input_model = api.model("EmptiedInput", {
                                 description="Who emptied the bin (optional)"),
 })
 
-# In-memory topic snapshot model
 topic_model = api.model("MQTTTopic", {
     "topic":     fields.String(description="MQTT topic string"),
     "payload":   fields.String(description="Last received payload (UTF-8)"),
@@ -286,7 +286,7 @@ topics_list_model = api.model("MQTTTopicList", {
 
 subscribe_input_model = api.model("MQTTSubscribeInput", {
     "topic": fields.String(required=True,
-                           description="Topic filter to subscribe to (wildcards # and + supported)"),
+                           description="Topic filter (wildcards # and + supported)"),
     "qos":   fields.Integer(default=1, description="QoS level (0, 1 or 2)"),
 })
 
@@ -578,12 +578,12 @@ class MQTTPublish(Resource):
 
         result = mqtt_client.publish(topic, payload, qos=qos, retain=retain)
         return {
-            "status":   "published",
-            "topic":    topic,
-            "payload":  payload,
-            "qos":      qos,
-            "retain":   retain,
-            "mqtt_rc":  result.rc,
+            "status":  "published",
+            "topic":   topic,
+            "payload": payload,
+            "qos":     qos,
+            "retain":  retain,
+            "mqtt_rc": result.rc,
         }, 200
 
 
@@ -632,8 +632,7 @@ class MQTTTopicDetail(Resource):
     @nmqtt.marshal_with(topic_model)
     @nmqtt.response(404, "Topic not found or no message received yet")
     def get(self, topic):
-        """Get the last in-memory message for a specific topic.
-        Use URL-encoded slashes (%2F) or pass the full path after /topics/."""
+        """Get the last in-memory message for a specific topic."""
         with topic_lock:
             if topic not in topic_store:
                 api.abort(404, f"No message received on topic '{topic}'")
@@ -699,7 +698,7 @@ class MLRetrain(Resource):
     @nsml.marshal_with(retrain_model)
     def post(self):
         """Retrain the busy/quiet predictor from real PIR_Events in the database.
-        Falls back to synthetic data if fewer than 50 real samples exist."""
+        Falls back to synthetic data automatically if fewer than 50 real samples exist."""
         try:
             from train_model import train_from_db
             clf, report, n_samples, model_path = train_from_db(DB_PATH, ML_DIR)
@@ -710,7 +709,6 @@ class MLRetrain(Resource):
                 "classification_report": report,
             }, 200
         except ValueError as exc:
-            # Not enough real data — fall back to pseudo
             from train_model import train_from_pseudo
             clf, report, n_samples, model_path = train_from_pseudo(ML_DIR)
             return {
