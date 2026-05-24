@@ -1,6 +1,5 @@
 # Lab 10 — Node-RED
 
-**Student:** anastasis | 12345678
 
 ---
 
@@ -71,6 +70,25 @@ flowchart LR
     MQTT --> NodeRED["Node-RED<br/>(visual flows)<br/>• dashboard<br/>• alerts<br/>• data routing"]
     MQTT --> HA["Home Assistant"]                              
 ```
+
+## FLOW 
+
+![alt text](image-3.png)
+
+Το MQTT topic smartbin/bin-01/pir-01/motion λαμβάνει μηνύματα κίνησης από τον PIR αισθητήρα, τα οποία περνούν από switch → function 1 όπου μετράει events στα τελευταία 10 λεπτά και υπολογίζει το επίπεδο δραστηριότητας. Αν το επίπεδο είναι high, ενεργοποιείται το POST_ALERT που στέλνει HTTP ειδοποίηση σε εξωτερικό server, ενώ παράλληλα τα δεδομένα δημοσιεύονται στο topic smartbin/bin-01/usage/nodered.
+
+
+![alt text](image.png)
+
+ MQTT inputs από το pir-01/motion  τροφοδοτούν μέσω switch → function 1 την ίδια λογική μέτρησης και ειδοποίησης (motion count, highNotification, POST_ALERT, HTTP request), με επιπλέον δημοσίευση alerts στο topic smartbin/bin-01/alerts. Παράλληλα, τα αποτελέσματα καταγράφονται σε αρχείο log, εμφανίζονται στο dashboard (Bin usage gauge + level), και ένα timestamp αποστέλλεται πίσω στο MQTT broker μέσω function 2.
+
+### Import flows on fresh node red 
+1. Open the Node-RED editor in your browser, click the menu (three lines, top‑right) and choose Import.
+2. Paste the flow JSON or choose the .json file you exported earlier, select New flow or Current flow, then click Import.
+3. Press Deploy to save and start the imported flow.
+
+
+
 
 ## Part B
 
@@ -147,6 +165,13 @@ flowchart LR
 
 **RQ12: A facilities manager (non-programmer) wants to add a new rule: “if no motion is detected for 6 hours during business hours, mark the bin as possibly blocked.” Could they build this in Node-RED without help? What nodes would they need?**
 
+Yes, they could build this using the follow nodes: 
+- mqtt in: To receive motion events.
+- trigger: To start and reset a 6-hour countdown timer.
+- time-range : To restrict the rule to business hours.
+- change: To set the "possibly blocked" message.
+- mqtt out: To send the final alert.
+
 **RQ13: What are the limitations of Node-RED that the lecture mentioned? Did you encounter any of them in this lab?**
 
 It becomes harder to manage many nodes in big projects. Also version control is weaker than code-based systems, and complex logic can become messy compared to programming. It can also be less suitable for performance-critical applications. In this lab, we did not encounter similar issues as the level of complexity of the lab was low enough for us to use a visual based approach and we were not aiming for the best performance possible.
@@ -156,6 +181,12 @@ It becomes harder to manage many nodes in big projects. Also version control is 
 ## Export and reproducibility
 
 **RQ14: You exported your flows as flows.json. A teammate imports it into their Node-RED instance. What will they need to configure manually? (Hint: think about the MQTT broker connection.)**
+
+They must manually configure:
+- Set up external technologies needed such as mqtt broker
+- MQTT Broker credentials (username and password).
+- Server details (IP address and port) if the broker is on a different network.
+Also possibly missing community nodes (they must install them via "Manage Palette").
 
 **RQ15: Compare flows.json with a Python script in terms of version control. If two teammates edit the flow at the same time, what happens when they try to merge?**
 

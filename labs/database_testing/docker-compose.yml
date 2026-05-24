@@ -1,0 +1,98 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - smartbin-net
+
+
+  producer:
+    build: .
+    command: python producer.py --verbose --host mosquitto
+    devices:
+      - /dev/gpiochip0:/dev/gpiochip0
+    volumes:
+      - ./data:/app/data
+    networks:
+      - smartbin-net
+    depends_on:
+      - mosquitto
+
+
+  consumer:
+    build: .
+    command: >
+      python consumer.py
+      --verbose
+      --host mosquitto
+      --topic smartbin/bin-01/pir-01/events
+      --out /app/data/motion_events.jsonl
+    volumes:
+      - ./data:/app/data
+    networks:
+      - smartbin-net
+    depends_on:
+      - mosquitto
+
+
+  api:
+    build: .
+    command: python api.py
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data          # PIR state files
+      - ./models:/app/models      # JSON-LD model files (wastebin / sensor / environment)
+      - ./models_v_s:/app/models_v_s  # trained ML model
+    environment:
+      - MQTT_BROKER=mosquitto
+      - DB_PATH=/app/data/smartbin.db   # SQLite database lives in the shared data volume
+    networks:
+      - smartbin-net
+    depends_on:
+      - mosquitto
+
+
+  train_model:
+    build: .
+    # Runs once on startup to train (or retrain) the ML model from real DB data.
+    # Restarts on failure so it retries until enough events have been collected.
+    command: python train_model.py --output-dir /app/models_v_s --db-path /app/data/smartbin.db
+    restart: on-failure
+    volumes:
+      - ./data:/app/data
+      - ./models_v_s:/app/models_v_s
+    networks:
+      - smartbin-net
+    depends_on:
+      - mosquitto
+
+
+  virtual_sensor_rules:
+    build: .
+    command: python virtual_sensor_rules.py --broker mosquitto
+    networks:
+      - smartbin-net
+    depends_on:
+      - mosquitto
+      - producer
+
+
+  virtual_sensor_ml:
+    build: .
+    command: python virtual_sensor_ml.py --broker mosquitto --model-path /app/models_v_s/busy_predictor.joblib
+    volumes:
+      - ./models_v_s:/app/models_v_s
+    networks:
+      - smartbin-net
+    depends_on:
+      - mosquitto
+      - producer
+
+
+networks:
+  smartbin-net:
+    driver: bridge

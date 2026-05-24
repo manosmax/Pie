@@ -1,0 +1,31 @@
+{
+  "@context": {
+    "@vocab":   "https://schema.org/",
+    "sosa":     "http://www.w3.org/ns/sosa/",
+    "xsd":      "http://www.w3.org/2001/XMLSchema#",
+    "pipeline": "https://github.com/manosmax/Pie/blob/main/docs/ontology.md#"
+  },
+
+  "@id":   "urn:wastebin:bin-01",
+  "@type": "sosa:Platform",
+
+  "name":        "Wastebin 01",
+  "description": "General-purpose waste bin deployed in the Kypes lab.",
+
+  "pipeline:material":   { "@value": "plastic",  "@type": "xsd:string"  },
+  "pipeline:color":      { "@value": "grey",      "@type": "xsd:string"  },
+  "pipeline:heightCm":   { "@value": 18,          "@type": "xsd:integer" },
+  "pipeline:diameterCm": { "@value": 8,           "@type": "xsd:integer" },
+  "pipeline:capacity":   { "@value": 50,          "@type": "xsd:integer" },
+
+  "pipeline:wasteType": { "@value": "general",   "@type": "xsd:string"  },
+  "pipeline:status":    { "@value": "active",    "@type": "xsd:string"  },
+
+  "sosa:hosts": [
+    "urn:dev:team08:pir-01"
+  ],
+
+  "pipeline:locatedIn": "urn:env:kypes",
+
+  "pipeline:installedOn": { "@value": "2026-04-01", "@type": "xsd:date" }
+}
