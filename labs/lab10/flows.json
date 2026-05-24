@@ -1,0 +1,618 @@
+[
+    {
+        "id": "62019e9d552c6d16",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "95a1523e8ba6f7aa",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "192.168.137.94",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "b5fba3b9141c5b59",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "192.168.137.94",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "3d3bf5d6958b4e77",
+        "type": "ui_group",
+        "name": "Smart wastebin",
+        "tab": "c6b9fd4d71a9a228",
+        "order": 1,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "c6b9fd4d71a9a228",
+        "type": "ui_tab",
+        "name": "Home",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "2c735947e25bc0b7",
+        "type": "ui_base",
+        "theme": {
+            "name": "theme-light",
+            "lightTheme": {
+                "default": "#0094CE",
+                "baseColor": "#0094CE",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": false
+            },
+            "darkTheme": {
+                "default": "#097479",
+                "baseColor": "#097479",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": false
+            },
+            "customTheme": {
+                "name": "Untitled Theme 1",
+                "default": "#4B7930",
+                "baseColor": "#4B7930",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+            },
+            "themeState": {
+                "base-color": {
+                    "default": "#0094CE",
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-titlebar-backgroundColor": {
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-backgroundColor": {
+                    "value": "#fafafa",
+                    "edited": false
+                },
+                "page-sidebar-backgroundColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "group-textColor": {
+                    "value": "#1bbfff",
+                    "edited": false
+                },
+                "group-borderColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "group-backgroundColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "widget-textColor": {
+                    "value": "#111111",
+                    "edited": false
+                },
+                "widget-backgroundColor": {
+                    "value": "#0094ce",
+                    "edited": false
+                },
+                "widget-borderColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "base-font": {
+                    "value": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+                }
+            },
+            "angularTheme": {
+                "primary": "indigo",
+                "accents": "blue",
+                "warn": "red",
+                "background": "grey",
+                "palette": "light"
+            }
+        },
+        "site": {
+            "name": "Node-RED Dashboard",
+            "hideToolbar": "false",
+            "allowSwipe": "false",
+            "lockMenu": "false",
+            "allowTempTheme": "true",
+            "dateFormat": "DD/MM/YYYY",
+            "sizes": {
+                "sx": 48,
+                "sy": 48,
+                "gx": 6,
+                "gy": 6,
+                "cx": 6,
+                "cy": 6,
+                "px": 0,
+                "py": 0
+            }
+        }
+    },
+    {
+        "id": "4395b32176f3d60f",
+        "type": "mqtt in",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "topic": "smartbin/bin-01/pir-01/events",
+        "qos": "1",
+        "datatype": "auto-detect",
+        "broker": "95a1523e8ba6f7aa",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 160,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "56eed35e6cd7e190",
+        "type": "mqtt in",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "topic": "smartbin/bin-01/pir-01/motion",
+        "qos": "1",
+        "datatype": "auto-detect",
+        "broker": "95a1523e8ba6f7aa",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 120,
+        "y": 500,
+        "wires": [
+            [
+                "1113e47eae3f609a"
+            ]
+        ]
+    },
+    {
+        "id": "63e8bf4f36badc27",
+        "type": "function",
+        "z": "62019e9d552c6d16",
+        "name": "function 1",
+        "func": "let motionEvents = flow.get(\"motion_events\") || [];\n\nconst currentTime = Date.now();\n\nconst windowSizeMinutes = 10;\nconst timeWindowMs = windowSizeMinutes * 60 * 1000;\nmotionEvents.push(currentTime);\n\nmotionEvents = motionEvents.filter(eventTime => {\n    return (currentTime - eventTime) < timeWindowMs;\n});\n\nflow.set(\"motion_events\", motionEvents);\n\nconst eventCount = motionEvents.length;\n\nlet activityLevel = \"idle\";\nif (eventCount === 0) {\n    activityLevel = \"idle\";\n} else if (eventCount <= 4) {\n    activityLevel = \"low\";\n} else if (eventCount <= 7) {\n    activityLevel = \"medium\";\n} else {\n    activityLevel = \"high\";\n}\nmsg.payload = {\n    activity_level: activityLevel,\n    event_count: eventCount,\n    window_size_minutes: windowSizeMinutes,\n    evaluation_timestamp: new Date(currentTime).toISOString()\n};\n\nmsg.payload = eventCount;  // gauge reads this number directly\nreturn msg;\n\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 300,
+        "y": 780,
+        "wires": [
+            [
+                "877d9019306c5a1f",
+                "a002b76ee2ebef27",
+                "3a08110f6bcda2c3",
+                "8b0e990a915b9c92",
+                "b3091cabbed7aab5",
+                "28a135d7481e4ebc",
+                "87310bea1a55e332"
+            ]
+        ]
+    },
+    {
+        "id": "3a08110f6bcda2c3",
+        "type": "debug",
+        "z": "62019e9d552c6d16",
+        "name": "motion count ",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 610,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "877d9019306c5a1f",
+        "type": "mqtt out",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "topic": "smartbin/bin-01/usage/nodered",
+        "qos": "1",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "b5fba3b9141c5b59",
+        "x": 630,
+        "y": 620,
+        "wires": []
+    },
+    {
+        "id": "a002b76ee2ebef27",
+        "type": "switch",
+        "z": "62019e9d552c6d16",
+        "name": "highNotification",
+        "property": "payload.activity_level",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "high",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 660,
+        "y": 500,
+        "wires": [
+            [
+                "e4e1ec1c43d6e270",
+                "85f01edc611eef66",
+                "4fc50598562f7d52"
+            ]
+        ]
+    },
+    {
+        "id": "e4e1ec1c43d6e270",
+        "type": "debug",
+        "z": "62019e9d552c6d16",
+        "name": "notifyHigh",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 880,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "29cce50decec9770",
+        "type": "http request",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://webhook.site/9ba03e20-d1c0-4320-8b43-fea22c4317ad",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 1110,
+        "y": 500,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "85f01edc611eef66",
+        "type": "function",
+        "z": "62019e9d552c6d16",
+        "name": "POST_ALERT",
+        "func": "msg.payload = {\n    text: \"Wastebin bin-01 usage is HIGH (\" + msg.payload.event_count + \" events in 10 min)\"\n};\nmsg.headers = {\"Content-Type\": \"application/json\"};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 920,
+        "y": 500,
+        "wires": [
+            [
+                "29cce50decec9770"
+            ]
+        ]
+    },
+    {
+        "id": "4fc50598562f7d52",
+        "type": "mqtt out",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "topic": "smartbin/bin-01/alerts",
+        "qos": "1",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "b5fba3b9141c5b59",
+        "x": 940,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "85361a868eb34142",
+        "type": "function",
+        "z": "62019e9d552c6d16",
+        "name": "function 2",
+        "func": "// ΔΙΟΡΘΩΘΗΚΕ: Το topic πρέπει να ακολουθεί τη δομή της Python για το συγκεκριμένο binary_sensor\nmsg.topic = \"homeassistant/binary_sensor/bin-01_high_alert/config\";\n\nmsg.payload = {\n    \"name\": \"Waste Bin bin-01 High Activity Alert\",\n    \"state_topic\": \"smartbin/bin-01/alerts\",\n    \"value_template\": \"{% if value_json.activity_level == 'high' %}ON{% else %}OFF{% endif %}\",\n    \"device_class\": \"problem\",\n    // ΔΙΟΡΘΩΘΗΚΕ: Το unique_id αλλάχτηκε για να μην μπερδεύεται με το κανονικό motion της Python\n    \"unique_id\": \"bin-01_high_activity_alert\",\n    \"device\": {\n        \"identifiers\": [\"bin-01\"],\n        \"name\": \"Smart Waste Bin bin-01\",\n        \"model\": \"IoT-Bin-v2\",\n        \"manufacturer\": \"Team 08\"\n    }\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 500,
+        "y": 960,
+        "wires": [
+            [
+                "34747210812c06de"
+            ]
+        ]
+    },
+    {
+        "id": "34747210812c06de",
+        "type": "mqtt out",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "topic": "",
+        "qos": "1",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "b5fba3b9141c5b59",
+        "x": 670,
+        "y": 960,
+        "wires": []
+    },
+    {
+        "id": "766fc2b676f89c3e",
+        "type": "inject",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 320,
+        "y": 960,
+        "wires": [
+            [
+                "85361a868eb34142"
+            ]
+        ]
+    },
+    {
+        "id": "1113e47eae3f609a",
+        "type": "switch",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "clear",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "detected",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 90,
+        "y": 820,
+        "wires": [
+            [
+                "87ccdd4bdaa86188"
+            ],
+            [
+                "63e8bf4f36badc27",
+                "296096ca0daef429"
+            ]
+        ]
+    },
+    {
+        "id": "87ccdd4bdaa86188",
+        "type": "debug",
+        "z": "62019e9d552c6d16",
+        "name": "cleared",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 300,
+        "y": 680,
+        "wires": []
+    },
+    {
+        "id": "8b0e990a915b9c92",
+        "type": "file",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "filename": "/home/iotlab_upat_8/programs/Pie/labs/lab10/data/detected_events.log",
+        "filenameType": "str",
+        "appendNewline": true,
+        "createDir": false,
+        "overwriteFile": "false",
+        "encoding": "none",
+        "x": 770,
+        "y": 720,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "b3091cabbed7aab5",
+        "type": "ui_gauge",
+        "z": "62019e9d552c6d16",
+        "name": "",
+        "group": "3d3bf5d6958b4e77",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Bin usage",
+        "label": "units",
+        "format": "{{payload.event_count}}",
+        "min": 0,
+        "max": "30",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 900,
+        "y": 800,
+        "wires": []
+    },
+    {
+        "id": "28a135d7481e4ebc",
+        "type": "ui_text",
+        "z": "62019e9d552c6d16",
+        "group": "3d3bf5d6958b4e77",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "level",
+        "format": "{{payload.level}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 930,
+        "y": 860,
+        "wires": []
+    },
+    {
+        "id": "87310bea1a55e332",
+        "type": "debug",
+        "z": "62019e9d552c6d16",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 640,
+        "y": 900,
+        "wires": []
+    },
+    {
+        "id": "296096ca0daef429",
+        "type": "debug",
+        "z": "62019e9d552c6d16",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 280,
+        "y": 880,
+        "wires": []
+    },
+    {
+        "id": "6e45919df50c83ee",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
