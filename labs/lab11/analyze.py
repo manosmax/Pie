@@ -155,3 +155,29 @@ def plot_latency_over_time(df):
     plt.xticks(rotation=45)
 
     plt.tight_layout()
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) > 1:
+        filepath = sys.argv[1]
+    else:
+        filepath = "data/motion_events.jsonl"
+
+    print(f"Φόρτωση δεδομένων από: {filepath}")
+
+    df = load_events(filepath)
+
+    print(f"Φορτώθηκαν {len(df)} συμβάντα.")
+
+    if df.empty:
+        print("Δεν βρέθηκαν δεδομένα. Παρακαλώ εκτελέστε πρώτα το pipeline.")
+        sys.exit(1)
+
+    plot_events_per_hour(df)
+    plot_latency_distribution(df)
+    plot_events_over_time(df)
+    plot_heatmap(df)
+    plot_latency_over_time(df)
+
+    print(f"Όλα τα γραφήματα αποθηκεύτηκαν επιτυχώς στον φάκελο: {CHARTS_DIR}")
