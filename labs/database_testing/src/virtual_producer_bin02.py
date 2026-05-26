@@ -1,7 +1,7 @@
 import argparse
 import json
 import logging
-import os
+import random
 import threading
 import time
 import uuid
@@ -9,35 +9,11 @@ from datetime import datetime, timezone
 from queue import Empty, Full, Queue
 
 import paho.mqtt.client as mqtt
-from pirlib import PirInterpreter, PirSampler
 
 logger = logging.getLogger(__name__)
 
-# State persistence
-
-STATE_FILE = "/app/data/sensor_state.json"
+# State persistence (in-memory only for virtual sensor)
 state_lock = threading.Lock()
-
-def load_state() -> dict:
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            logger.info("[STATE] Loaded: item_count=%s fill_level=%s",
-                        data.get("item_count", 0), data.get("fill_level", 0))
-            return data
-        except Exception as exc:
-            logger.warning("[STATE] Could not load state file (%s) — starting fresh.", exc)
-    return {"item_count": 0, "fill_level": 0}
-
-def save_state(state: dict) -> None:
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    tmp = STATE_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(state, f)
-    os.replace(tmp, STATE_FILE)
-
-# Constants
 
 BIN_CAPACITY = 50
 
@@ -60,7 +36,6 @@ JSONLD_CONTEXT = {
     "fill_level": {"@id": "pipeline:fillLevel", "@type": "xsd:integer"},
 }
 
-# Helpers
 
 def utc_now_iso() -> str:
     return (
@@ -69,32 +44,32 @@ def utc_now_iso() -> str:
         .replace("+00:00", "Z")
     )
 
+
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="PIR producer — reads sensor, publishes to MQTT")
-    p.add_argument("--device-id", default="urn:dev:team08:pir-01")
-    p.add_argument("--bin-id", default="bin-01")
-    p.add_argument("--sensor-id", default="pir-01")
-    p.add_argument("--pin", type=int, default=17)
-    p.add_argument("--sample-interval", type=float, default=0.1)
-    p.add_argument("--cooldown", type=float, default=5.0)
-    p.add_argument("--min-high", type=float, default=0.2)
+    p = argparse.ArgumentParser(description="Virtual PIR producer for bin-02 — simulates sensor, publishes to MQTT")
+    p.add_argument("--device-id", default="urn:dev:team08:pir-02")
+    p.add_argument("--bin-id", default="bin-02")
+    p.add_argument("--sensor-id", default="pir-02")
+    p.add_argument("--event-interval", type=float, default=15.0,
+                   help="Average seconds between simulated motion events")
+    p.add_argument("--jitter", type=float, default=5.0,
+                   help="Random jitter +/- seconds around event-interval")
     p.add_argument("--queue-size", type=int, default=100)
     p.add_argument("--duration", type=float, default=7200.0)
     p.add_argument("--host", default="localhost")
     p.add_argument("--port", type=int, default=1883)
     p.add_argument("--qos", type=int, default=1)
-    p.add_argument("--topic", default="smartbin/bin-01/pir-01/events")
+    p.add_argument("--topic", default="smartbin/bin-02/pir-02/events")
     p.add_argument("--verbose", action="store_true")
     return p.parse_args()
 
-# Home Assistant MQTT Discovery
 
 def send_discovery(client, bin_id: str, sensor_id: str, pir_topic: str, fill_topic: str) -> None:
-    """Publish retained HA MQTT Discovery payloads."""
+    """Publish retained HA MQTT Discovery payloads for bin-02."""
     device_info = {
         "identifiers": [bin_id],
         "name": f"Smart Waste Bin {bin_id}",
-        "model": "IoT-Bin-v2",
+        "model": "IoT-Bin-v2-Virtual",
         "manufacturer": "Team 08",
     }
 
@@ -127,60 +102,57 @@ def send_discovery(client, bin_id: str, sensor_id: str, pir_topic: str, fill_top
         f"homeassistant/sensor/{bin_id}_fill/config",
         json.dumps(fill_config), qos=1, retain=True,
     )
-    logger.info("[HA] Discovery sent for Motion and Fill Level entities.")
+    logger.info("[HA] Discovery sent for bin-02 Motion and Fill Level entities.")
 
-# Producer thread — reads GPIO, enqueues event dicts
 
 def producer_loop(
     event_q: Queue,
-    sampler: PirSampler,
-    interp: PirInterpreter,
     args: argparse.Namespace,
     metrics: dict,
     stop_flag: dict,
     state: dict,
 ) -> None:
+    """Simulates motion events at random intervals instead of reading real GPIO."""
     run_id = str(uuid.uuid4())
     seq = 0
 
     while not stop_flag["stop"]:
-        t = time.monotonic()
-        raw = sampler.read()
+        # Wait a random interval to simulate a person passing by
+        wait = max(0.5, args.event_interval + random.uniform(-args.jitter, args.jitter))
+        time.sleep(wait)
 
-        for _ in interp.update(raw, t):
-            seq += 1
+        if stop_flag["stop"]:
+            break
 
-            with state_lock:
-                state["item_count"] += 1
-                fill_level = min(int((state["item_count"] / BIN_CAPACITY) * 100), 100)
-                state["fill_level"] = fill_level
-                save_state(state)
+        seq += 1
 
-            record = {
-                "@context": JSONLD_CONTEXT,
-                "@id": f"urn:event:{run_id}:{seq}",
-                "@type": "sosa:Observation",
-                "event_time": utc_now_iso(),
-                "device_id": args.device_id,
-                "event_type": "urn:prop:team08:motion",
-                "motion_state": "detected",
-                "seq": seq,
-                "run_id": run_id,
-                "mounted_on": f"urn:wastebin:{args.bin_id}",
-                "item_count": state["item_count"],
-                "fill_level": fill_level,
-            }
+        with state_lock:
+            state["item_count"] += 1
+            fill_level = min(int((state["item_count"] / BIN_CAPACITY) * 100), 100)
+            state["fill_level"] = fill_level
 
-            try:
-                event_q.put_nowait(record)
-                metrics["produced"] += 1
-            except Full:
-                metrics["dropped"] += 1
-                logger.warning("[PRODUCER] Queue full — event dropped (seq=%d)", seq)
+        record = {
+            "@context": JSONLD_CONTEXT,
+            "@id": f"urn:event:{run_id}:{seq}",
+            "@type": "sosa:Observation",
+            "event_time": utc_now_iso(),
+            "device_id": args.device_id,
+            "event_type": "urn:prop:team08:motion",
+            "motion_state": "detected",
+            "seq": seq,
+            "run_id": run_id,
+            "mounted_on": f"urn:wastebin:{args.bin_id}",
+            "item_count": state["item_count"],
+            "fill_level": fill_level,
+        }
 
-        time.sleep(args.sample_interval)
+        try:
+            event_q.put_nowait(record)
+            metrics["produced"] += 1
+        except Full:
+            metrics["dropped"] += 1
+            logger.warning("[PRODUCER] Queue full — event dropped (seq=%d)", seq)
 
-# Publisher thread — drains queue, sends to MQTT, handles commands
 
 def publisher_loop(
     event_q: Queue,
@@ -228,7 +200,6 @@ def publisher_loop(
                 state["item_count"] = 0
                 state["fill_level"] = 0
 
-            save_state(state)
             client.publish(ha_fill_topic, "0", qos=qos, retain=True)
             logger.info("[CMD] Bin %s emptied by '%s' at %s.", args.bin_id, emptied_by, emptied_at)
         else:
@@ -257,7 +228,7 @@ def publisher_loop(
         # Publish global bin motion state (used by HA)
         client.publish(ha_pir_topic, "detected", qos=qos)
 
-        # Publish local sensor-specific motion state (pir-01 topic)
+        # Publish local sensor-specific motion state (pir-02 topic)
         client.publish(local_pir_topic, "detected", qos=qos)
         logger.debug("[PUB] Published motion to global=%s and local=%s", ha_pir_topic, local_pir_topic)
 
@@ -276,7 +247,6 @@ def publisher_loop(
     client.loop_stop()
     client.disconnect()
 
-# Entry point
 
 def main() -> None:
     logging.basicConfig(
@@ -287,17 +257,14 @@ def main() -> None:
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    state = load_state()
+    state = {"item_count": 0, "fill_level": 0}
     event_q: Queue = Queue(maxsize=args.queue_size)
     metrics = {"produced": 0, "published": 0, "dropped": 0, "errors": 0}
     stop_flag = {"stop": False}
 
-    sampler = PirSampler(pin=args.pin)
-    interp = PirInterpreter(cooldown_s=args.cooldown, min_high_s=args.min_high)
-
     producer_t = threading.Thread(
         target=producer_loop,
-        args=(event_q, sampler, interp, args, metrics, stop_flag, state),
+        args=(event_q, args, metrics, stop_flag, state),
         daemon=True,
     )
     publisher_t = threading.Thread(
@@ -307,10 +274,10 @@ def main() -> None:
     )
 
     logger.info(
-        "[PRODUCER] Starting — bin=%s sensor=%s duration=%.0fs "
-        "resumed item_count=%s fill=%s%%",
+        "[PRODUCER] Starting virtual bin-02 — bin=%s sensor=%s duration=%.0fs "
+        "event_interval=%.1fs jitter=%.1fs",
         args.bin_id, args.sensor_id, args.duration,
-        state["item_count"], state["fill_level"],
+        args.event_interval, args.jitter,
     )
     producer_t.start()
     publisher_t.start()
@@ -320,9 +287,10 @@ def main() -> None:
         while (time.time() - start_t) < args.duration:
             if args.verbose:
                 logger.debug(
-                    "[STATUS] produced=%s published=%s dropped=%s queue=%s",
+                    "[STATUS] produced=%s published=%s dropped=%s queue=%s fill=%s%%",
                     metrics["produced"], metrics["published"],
                     metrics["dropped"], event_q.qsize(),
+                    state["fill_level"],
                 )
             time.sleep(2.0)
     except KeyboardInterrupt:
@@ -331,12 +299,12 @@ def main() -> None:
         stop_flag["stop"] = True
         producer_t.join(timeout=5)
         publisher_t.join(timeout=5)
-        sampler.cleanup()
 
     logger.info(
         "[PRODUCER] Done. produced=%s published=%s dropped=%s",
         metrics["produced"], metrics["published"], metrics["dropped"],
     )
+
 
 if __name__ == "__main__":
     main()
