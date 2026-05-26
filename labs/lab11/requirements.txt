@@ -5,3 +5,6 @@ flask-restx
 scikit-learn 
 pandas 
 joblib
+seaborn
+matplotlib
+pandas
