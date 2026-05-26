@@ -13,6 +13,7 @@ MQTT_Messages   — raw MQTT payloads for crash/debug recovery
 
 import sqlite3
 import os
+from datetime import datetime, timezone
 
 DB_PATH = os.environ.get("DB_PATH", "smartbin.db")
 
@@ -163,7 +164,7 @@ def upsert_mounted_on(conn: sqlite3.Connection, sensor_id: str, bin_id: str) -> 
 def insert_pir_event(conn: sqlite3.Connection, record: dict) -> None:
     """Insert a JSON-LD event record (from producer / consumer) into PIR_Events
     and increment the matching Bin_Usage counter."""
-    from datetime import datetime, timezone
+    
 
     event_time_str = record.get("event_time", "")
     try:

@@ -11,22 +11,22 @@
   "@id":   "urn:dev:team08:pir-01",
   "@type": "sosa:Sensor",
 
-  "name":        "HC-SR501 PIR Motion Sensor — Bin 08",
-  "description": "HC-SR501 passive infrared motion sensor. Detects motion by sensing differential changes in infrared radiation.",
+  "name":        "HC-SR501 PIR Motion Sensor — Bin 01",
+  "description": "A motion sensor that 'sees' when someone approaches or drops trash into the bin by detecting heat signatures from bodies or moving objects.",
   "model":       "HC-SR501",
 
   "sosa:observes": {
     "@type":       "sosa:ObservableProperty",
     "@id":         "urn:prop:team08:motion",
-    "name":        "Motiion",
-    "description": "Instantaneous motion (temperature > ambient) within the sensor field of view. This is a discrete event property. The sensor output goes HIGH when motion is detected and LOW when it ceases."
+    "name":        "Motion",
+    "description": "When motion is detected the sensor sends a signal. The sensor output goes HIGH when motion is detected and LOW when it ceases."
   },
 
   "ssn:hasProperty": [
     {
       "@type":              "ssn-system:MeasurementRange",
       "name":               "Detection Range",
-      "description":        "Adjustable via onboard potentiometer. Configured at maximum (~7 m) for this deployment.",
+      "description":        "The distance that the sensor can detect motion.Adjustable via onboard potentiometer. For this deployment we set it at approximately 35%.",
       "pipeline:minValueM": { "@value": "0.5", "@type": "xsd:float" },
       "pipeline:maxValueM": { "@value": "7.0", "@type": "xsd:float" }
     },
@@ -86,7 +86,7 @@
     "schema:value": { "@value": "repeat-trigger", "@type": "xsd:string" }
   },
   "pipeline:sensingPrinciple": {
-    "@value": "Passive infrared — detects differential changes in infrared radiation across two pyroelectric sensing elements. Does not emit radiation.",
+    "@value": "Passive infrared.",
     "@type":  "xsd:string"
   },
   "pipeline:indoorOutdoor": {
