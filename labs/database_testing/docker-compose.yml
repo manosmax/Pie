@@ -8,7 +8,7 @@ services:
     networks:
       - smartbin-net
 
-  # ── Bin 01 — real PIR sensor (GPIO) ────────────────────────────────────────
+
   producer:
     build: .
     command: python producer.py --verbose --host mosquitto
@@ -20,6 +20,7 @@ services:
       - smartbin-net
     depends_on:
       - mosquitto
+
 
   consumer:
     build: .
@@ -36,60 +37,29 @@ services:
     depends_on:
       - mosquitto
 
-  # ── Bin 02 — virtual PIR sensor (simulated) ────────────────────────────────
-  producer_bin02:
-    build: .
-    command: >
-      python virtual_producer_bin02.py
-      --verbose
-      --host mosquitto
-      --bin-id bin-02
-      --sensor-id pir-02
-      --topic smartbin/bin-02/pir-02/events
-      --event-interval 15
-      --jitter 5
-    volumes:
-      - ./data:/app/data
-    networks:
-      - smartbin-net
-    depends_on:
-      - mosquitto
 
-  consumer_bin02:
-    build: .
-    command: >
-      python consumer.py
-      --verbose
-      --host mosquitto
-      --topic smartbin/bin-02/pir-02/events
-      --out /app/data/motion_events_bin02.jsonl
-    volumes:
-      - ./data:/app/data
-    networks:
-      - smartbin-net
-    depends_on:
-      - mosquitto
-
-  # ── Shared services ─────────────────────────────────────────────────────────
   api:
     build: .
     command: python api.py
     ports:
       - "5000:5000"
     volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-      - ./models_v_s:/app/models_v_s
+      - ./data:/app/data          # PIR state files
+      - ./models:/app/models      # JSON-LD model files (wastebin / sensor / environment)
+      - ./models_v_s:/app/models_v_s  # trained ML model
     environment:
       - MQTT_BROKER=mosquitto
-      - DB_PATH=/app/data/smartbin.db
+      - DB_PATH=/app/data/smartbin.db   # SQLite database lives in the shared data volume
     networks:
       - smartbin-net
     depends_on:
       - mosquitto
 
+
   train_model:
     build: .
+    # Runs once on startup to train (or retrain) the ML model from real DB data.
+    # Restarts on failure so it retries until enough events have been collected.
     command: python train_model.py --output-dir /app/models_v_s --db-path /app/data/smartbin.db
     restart: on-failure
     volumes:
@@ -100,7 +70,7 @@ services:
     depends_on:
       - mosquitto
 
-  # ── Virtual sensors — Bin 01 ────────────────────────────────────────────────
+
   virtual_sensor_rules:
     build: .
     command: python virtual_sensor_rules.py --broker mosquitto
@@ -110,12 +80,10 @@ services:
       - mosquitto
       - producer
 
+
   virtual_sensor_ml:
     build: .
-    command: >
-      python virtual_sensor_ml.py
-      --broker mosquitto
-      --model-path /app/models_v_s/busy_predictor.joblib
+    command: python virtual_sensor_ml.py --broker mosquitto --model-path /app/models_v_s/busy_predictor.joblib
     volumes:
       - ./models_v_s:/app/models_v_s
     networks:
@@ -124,36 +92,6 @@ services:
       - mosquitto
       - producer
 
-  # ── Virtual sensors — Bin 02 ────────────────────────────────────────────────
-  virtual_sensor_rules_bin02:
-    build: .
-    command: >
-      python virtual_sensor_rules.py
-      --broker mosquitto
-      --bin-id bin-02
-      --subscribe-topic smartbin/bin-02/pir-02/events
-      --publish-topic smartbin/bin-02/usage
-    networks:
-      - smartbin-net
-    depends_on:
-      - mosquitto
-      - producer_bin02
-
-  virtual_sensor_ml_bin02:
-    build: .
-    command: >
-      python virtual_sensor_ml.py
-      --broker mosquitto
-      --bin-id bin-02
-      --publish-topic smartbin/bin-02/prediction
-      --model-path /app/models_v_s/busy_predictor.joblib
-    volumes:
-      - ./models_v_s:/app/models_v_s
-    networks:
-      - smartbin-net
-    depends_on:
-      - mosquitto
-      - producer_bin02
 
 networks:
   smartbin-net:
