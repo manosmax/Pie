@@ -1,0 +1,18 @@
+tunnel: <YOUR_TUNNEL_UUID>
+credentials-file: /home/pi/.cloudflared/<YOUR_TUNNEL_UUID>.json
+
+ingress:
+  - hostname: ha.yourdomain.com
+    service: http://localhost:8123
+
+  - hostname: api.yourdomain.com
+    service: http://localhost:5000
+
+  - hostname: upload.yourdomain.com
+    service: http://localhost:5001
+
+  - hostname: asyncapi.yourdomain.com
+    service: http://localhost:5002
+
+  # Required catch-all at the end
+  - service: http_status:404

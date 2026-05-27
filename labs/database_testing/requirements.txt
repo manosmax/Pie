@@ -2,6 +2,9 @@ paho-mqtt
 lgpio
 flask
 flask-restx
-scikit-learn 
-pandas 
+scikit-learn
+pandas
 joblib
+matplotlib
+seaborn
+numpy
