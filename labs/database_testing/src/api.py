@@ -37,7 +37,7 @@ import io
 import csv
 
 import paho.mqtt.client as mqtt
-from flask import Flask, make_response
+from flask import Flask, Response
 from flask_restx import Api, Resource, fields, reqparse
 
 from database import (
@@ -510,15 +510,16 @@ class BinEmptiedHistory(Resource):
 
 @ns.route("/<string:bin_id>/usage_data")
 class BinUsageCSV(Resource):
-    @ns.response(200, "CSV file returned")
+    @ns.produces(["text/csv"])
+    @ns.response(200, "CSV file download")
     @ns.response(404, "Bin not found")
     def get(self, bin_id):
         """Export full weekly usage heatmap as a CSV file for ML training.
 
         Returns a 168-row CSV (7 days × 24 hours) with columns:
-        day_of_week, hour, is_weekend, event_count, label
+        day_of_week, hour, is_weekend, event_count, label.
         Rows with no recorded usage are included with event_count=0.
-        label is 'busy' if event_count >= 10, else 'quiet'.
+        label is 'busy' if event_count >= BUSY_THRESHOLD, else 'quiet'.
         """
         with db_lock:
             if not db_conn.execute(
@@ -530,13 +531,11 @@ class BinUsageCSV(Resource):
                 QUERY_WEEKLY_HEATMAP, {"bin_id": bin_id}
             ).fetchall()
 
-        # Build a lookup: (day_of_week, hour) → usage_count
         usage_lookup: dict[tuple[int, int], int] = {
             (r["day_of_week"], r["hour"]): r["usage_count"]
             for r in rows
         }
 
-        # Generate all 168 slots (7 days × 24 hours), filling missing ones with 0
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(["day_of_week", "hour", "is_weekend", "event_count", "label"])
@@ -548,14 +547,15 @@ class BinUsageCSV(Resource):
                 label = "busy" if count >= BUSY_THRESHOLD else "quiet"
                 writer.writerow([dow, hour, is_weekend, count, label])
 
-        csv_bytes = output.getvalue().encode("utf-8")
-        response  = make_response(csv_bytes)
-        response.headers["Content-Type"]        = "text/csv; charset=utf-8"
-        response.headers["Content-Disposition"] = (
-            f'attachment; filename="usage_data_{bin_id}.csv"'
+        return Response(
+            output.getvalue().encode("utf-8"),
+            status=200,
+            mimetype="text/csv",
+            headers={
+                "Content-Disposition": f'attachment; filename="usage_data_{bin_id}.csv"',
+                "Content-Type": "text/csv; charset=utf-8",
+            }
         )
-        return response
-
 # ── /sensors ──────────────────────────────────────────────────────────────────
 
 @nsensor.route("/")
