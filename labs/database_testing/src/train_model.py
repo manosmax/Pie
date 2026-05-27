@@ -8,6 +8,7 @@ import os
 import sqlite3
 
 MIN_REAL_SAMPLES = 50   # minimum hourly slots before we trust real data
+BUSY_THRESHOLD = 10   
 
 
 # ── Synthetic data (cold-start fallback) ─────────────────────────────────────
@@ -37,7 +38,7 @@ def generate_training_data(days=30, seed=42):
             if event_count < 0:
                 event_count = 0
 
-            label = "busy" if event_count > 10 else "quiet"
+            label = "busy" if event_count >= BUSY_THRESHOLD else "quiet"
 
             rows.append({
                 "day_of_week": day_of_week,
@@ -111,9 +112,8 @@ def load_real_data(db_path: str) -> pd.DataFrame:
         .reset_index(name="event_count")
     )
 
-    threshold  = agg["event_count"].quantile(0.67)
     agg["label"] = agg["event_count"].apply(
-        lambda x: "busy" if x >= threshold else "quiet"
+        lambda x: "busy" if x >= BUSY_THRESHOLD  else "quiet"
     )
 
     return agg

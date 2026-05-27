@@ -32,9 +32,12 @@ import json
 import os
 import threading
 from datetime import datetime, timezone
+from train_model import BUSY_THRESHOLD
+import io
+import csv
 
 import paho.mqtt.client as mqtt
-from flask import Flask
+from flask import Flask, make_response
 from flask_restx import Api, Resource, fields, reqparse
 
 from database import (
@@ -323,6 +326,9 @@ retrain_model = api.model("MLRetrain", {
     "classification_report": fields.String(),
 })
 
+
+
+
 # ── Parsers ───────────────────────────────────────────────────────────────────
 
 limit_parser = reqparse.RequestParser()
@@ -500,6 +506,55 @@ class BinEmptiedHistory(Resource):
                 (bin_id, args["limit"])
             ).fetchall()
         return _rows_to_list(rows), 200
+    
+
+@ns.route("/<string:bin_id>/usage_data")
+class BinUsageCSV(Resource):
+    @ns.response(200, "CSV file returned")
+    @ns.response(404, "Bin not found")
+    def get(self, bin_id):
+        """Export full weekly usage heatmap as a CSV file for ML training.
+
+        Returns a 168-row CSV (7 days × 24 hours) with columns:
+        day_of_week, hour, is_weekend, event_count, label
+        Rows with no recorded usage are included with event_count=0.
+        label is 'busy' if event_count >= 10, else 'quiet'.
+        """
+        with db_lock:
+            if not db_conn.execute(
+                "SELECT 1 FROM Bins WHERE bin_id=?", (bin_id,)
+            ).fetchone():
+                api.abort(404, f"Bin '{bin_id}' not found")
+
+            rows = db_conn.execute(
+                QUERY_WEEKLY_HEATMAP, {"bin_id": bin_id}
+            ).fetchall()
+
+        # Build a lookup: (day_of_week, hour) → usage_count
+        usage_lookup: dict[tuple[int, int], int] = {
+            (r["day_of_week"], r["hour"]): r["usage_count"]
+            for r in rows
+        }
+
+        # Generate all 168 slots (7 days × 24 hours), filling missing ones with 0
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["day_of_week", "hour", "is_weekend", "event_count", "label"])
+
+        for dow in range(7):
+            is_weekend = 1 if dow in (5, 6) else 0
+            for hour in range(24):
+                count = usage_lookup.get((dow, hour), 0)
+                label = "busy" if count >= BUSY_THRESHOLD else "quiet"
+                writer.writerow([dow, hour, is_weekend, count, label])
+
+        csv_bytes = output.getvalue().encode("utf-8")
+        response  = make_response(csv_bytes)
+        response.headers["Content-Type"]        = "text/csv; charset=utf-8"
+        response.headers["Content-Disposition"] = (
+            f'attachment; filename="usage_data_{bin_id}.csv"'
+        )
+        return response
 
 # ── /sensors ──────────────────────────────────────────────────────────────────
 
@@ -586,68 +641,6 @@ class MQTTPublish(Resource):
             "mqtt_rc": result.rc,
         }, 200
 
-
-@nmqtt.route("/subscribe")
-class MQTTSubscribe(Resource):
-    @nmqtt.expect(subscribe_input_model)
-    @nmqtt.response(200, "Subscribed")
-    @nmqtt.response(400, "Invalid request")
-    def post(self):
-        """Subscribe the API MQTT client to an additional topic at runtime.
-        Wildcards # and + are supported (e.g. 'homeassistant/#')."""
-        data  = api.payload or {}
-        topic = data.get("topic")
-        qos   = data.get("qos", 1)
-
-        if not topic:
-            api.abort(400, "'topic' is required")
-        if qos not in (0, 1, 2):
-            api.abort(400, "QoS must be 0, 1, or 2")
-
-        result, mid = mqtt_client.subscribe(topic, qos=qos)
-        return {
-            "status":  "subscribed",
-            "topic":   topic,
-            "qos":     qos,
-            "mqtt_rc": result,
-            "mid":     mid,
-        }, 200
-
-
-@nmqtt.route("/topics")
-class MqttTopics(Resource):
-    @nmqtt.marshal_with(topics_list_model)
-    def get(self):
-        """Live in-memory snapshot — last message received per topic.
-        Resets on API restart; use /mqtt/messages for durable history."""
-        with topic_lock:
-            return {
-                "topic_count": len(topic_store),
-                "topics":      list(topic_store.values()),
-            }, 200
-
-
-@nmqtt.route("/topics/<path:topic>")
-class MQTTTopicDetail(Resource):
-    @nmqtt.marshal_with(topic_model)
-    @nmqtt.response(404, "Topic not found or no message received yet")
-    def get(self, topic):
-        """Get the last in-memory message for a specific topic."""
-        with topic_lock:
-            if topic not in topic_store:
-                api.abort(404, f"No message received on topic '{topic}'")
-            return topic_store[topic], 200
-
-    @nmqtt.response(200, "Topic cleared from in-memory store")
-    @nmqtt.response(404, "Topic not found")
-    def delete(self, topic):
-        """Remove a topic entry from the in-memory store.
-        Does NOT unsubscribe from the broker — new messages will re-populate it."""
-        with topic_lock:
-            if topic not in topic_store:
-                api.abort(404, f"Topic '{topic}' not in store")
-            del topic_store[topic]
-        return {"status": "cleared", "topic": topic}, 200
 
 
 @nmqtt.route("/messages")

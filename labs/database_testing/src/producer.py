@@ -116,7 +116,7 @@ def send_discovery(client, bin_id: str, sensor_id: str, pir_topic: str, fill_top
     }
 
     pir_config = {
-        "name": f"Waste Bin {bin_id} Motion",
+        "name": f"Waste Bin {bin_id} : {sensor_id} Motion",
         "state_topic": pir_topic,
         "payload_on": "detected",
         "payload_off": "clear",
@@ -213,6 +213,7 @@ def publisher_loop(
     state: dict,
 ) -> None:
     topic, qos = args.topic, args.qos
+    
     ha_pir_topic  = f"smartbin/{args.bin_id}/{args.sensor_id}/motion"
     ha_fill_topic = f"smartbin/{args.bin_id}/fill-level/state"
    
