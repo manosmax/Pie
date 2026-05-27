@@ -342,6 +342,8 @@ mqtt_parser = reqparse.RequestParser()
 mqtt_parser.add_argument("limit", type=int, default=100,
                          help="Max messages to return")
 
+
+
 # ── /bins ────────────────────────────────────────────────────────────────────
 
 @ns.route("/")

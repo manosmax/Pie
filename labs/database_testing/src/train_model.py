@@ -118,6 +118,54 @@ def load_real_data(db_path: str) -> pd.DataFrame:
 
     return agg
 
+def train_from_csv(csv_path: str, output_dir: str = "models_v_s"):
+    """Train from an uploaded CSV file (as produced by the dashboard or api.py export).
+    Returns (clf, report_str, n_samples, model_path).
+    Raises ValueError if the file has missing columns or too few rows.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    df = pd.read_csv(csv_path)
+
+    required = {"day_of_week", "hour", "is_weekend", "event_count", "label"}
+    missing  = required - set(df.columns)
+    if missing:
+        raise ValueError(f"CSV missing required columns: {', '.join(sorted(missing))}")
+
+    if len(df) < MIN_REAL_SAMPLES:
+        raise ValueError(
+            f"Only {len(df)} rows in CSV (need {MIN_REAL_SAMPLES}). "
+            "Upload a larger file or use train_from_pseudo()."
+        )
+
+    bad_labels = set(df["label"].dropna().unique()) - {"busy", "quiet"}
+    if bad_labels:
+        raise ValueError(f"Unexpected label values in CSV: {bad_labels}")
+
+    # Align label with shared threshold — re-derive from event_count to be safe
+    df["label"] = df["event_count"].apply(
+        lambda x: "busy" if x >= BUSY_THRESHOLD else "quiet"
+    )
+
+    X = df[["day_of_week", "hour", "is_weekend"]]
+    y = df["label"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    clf.fit(X_train, y_train)
+
+    report     = classification_report(y_test, clf.predict(X_test))
+    model_path = os.path.join(output_dir, "busy_predictor.joblib")
+    joblib.dump(clf, model_path, protocol=4)
+
+    print(f"[TRAIN] Trained on {len(df)} CSV rows. Model saved to {model_path}")
+    print(report)
+
+    return clf, report, len(df), model_path
+
 
 def train_from_db(db_path: str, output_dir: str = "models_v_s"):
     """Train from real database data. Returns (clf, report_str, n_samples, model_path)."""
